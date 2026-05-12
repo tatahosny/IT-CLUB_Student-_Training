@@ -38,12 +38,18 @@ const scanQR = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Session is not active' });
     }
 
-    // 3. Determine student (for personal QR: student scans own; for staff: req.body.studentId)
+    // 3. Determine student
     let studentId;
     if (scannerRole === 'student') {
       studentId = req.user.id;
     } else {
-      studentId = parseInt(req.body.studentId);
+      // If staff is scanning, try to get studentId from request body first, 
+      // otherwise fallback to the user_id associated with the QR token (for personal QRs)
+      studentId = req.body.studentId ? parseInt(req.body.studentId) : qrToken.user_id;
+    }
+
+    if (!studentId) {
+      return res.status(400).json({ success: false, message: 'Student ID not identified' });
     }
 
     const student = await prisma.user.findUnique({
@@ -52,7 +58,7 @@ const scanQR = async (req, res) => {
     });
 
     if (!student || student.role.role_name !== 'student') {
-      return res.status(400).json({ success: false, message: 'Student not found' });
+      return res.status(400).json({ success: false, message: 'Student not found or invalid role' });
     }
 
     // 4. Check fraud detection flag from deviceGuard middleware
