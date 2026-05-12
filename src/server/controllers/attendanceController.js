@@ -67,6 +67,37 @@ const scanQR = async (req, res) => {
       const currentUserId = req.fraudDetected.currentUserId;
       const suspectUserId = req.fraudDetected.suspectUserId;
 
+      // Record the Fraud in Attendance Table for both users (mark as NOT present with fraud note)
+      const fraudRecordData = (uid, partnerId) => ({
+        where: {
+          session_id_student_id_attendance_type: {
+            session_id: session.id,
+            student_id: uid,
+            attendance_type: attendanceType || 'first',
+          },
+        },
+        update: {
+          is_present: false,
+          scanner_role: 'FRAUD_ATTEMPT',
+          device_id: 'SYSTEM_BLOCKED',
+          ip_address: `PARTNER_ID:${partnerId}`,
+          scanned_at: new Date(),
+        },
+        create: {
+          session_id: session.id,
+          student_id: uid,
+          attendance_type: attendanceType || 'first',
+          is_present: false,
+          scanner_role: 'FRAUD_ATTEMPT',
+          device_id: 'SYSTEM_BLOCKED',
+          ip_address: `PARTNER_ID:${partnerId}`,
+          scanned_at: new Date(),
+        },
+      });
+
+      await prisma.attendance.upsert(fraudRecordData(currentUserId, suspectUserId));
+      await prisma.attendance.upsert(fraudRecordData(suspectUserId, currentUserId));
+
       // Block both accounts
       await prisma.user.updateMany({
         where: { id: { in: [currentUserId, suspectUserId] } },
