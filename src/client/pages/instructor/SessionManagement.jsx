@@ -224,26 +224,26 @@ export default function SessionManagement() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                 <div style={{ gridColumn: 'span 2' }}>
                   <label className="label">Workshop Title</label>
-                  <input className="input" value={form.title} onChange={e => setForm({...form, title: e.target.value})} placeholder="e.g. Intro to Web Development" />
+                  <input className="input" value={form.title} onChange={e => setForm({...form, title: e.target.value})} placeholder="e.g. Intro to Web Development" disabled={user.role?.role_name !== 'super_admin'} />
                 </div>
                 <div>
                   <label className="label">Room Number</label>
-                  <input className="input" value={form.room_number} onChange={e => setForm({...form, room_number: e.target.value})} placeholder="e.g. Lab-3" />
+                  <input className="input" value={form.room_number} onChange={e => setForm({...form, room_number: e.target.value})} placeholder="e.g. Lab-3" disabled={user.role?.role_name !== 'super_admin'} />
                 </div>
                 <div>
                   <label className="label">Session Type</label>
-                  <select className="input" value={form.session_type} onChange={e => setForm({...form, session_type: e.target.value})}>
+                  <select className="input" value={form.session_type} onChange={e => setForm({...form, session_type: e.target.value})} disabled={user.role?.role_name !== 'super_admin'}>
                     <option value="workshop">Workshop</option>
                     <option value="lecture">Lecture</option>
                   </select>
                 </div>
                 <div>
                   <label className="label">Start Time</label>
-                  <input className="input" type="datetime-local" value={form.start_time} onChange={e => setForm({...form, start_time: e.target.value})} />
+                  <input className="input" type="datetime-local" value={form.start_time} onChange={e => setForm({...form, start_time: e.target.value})} disabled={user.role?.role_name !== 'super_admin'} />
                 </div>
                 <div>
                   <label className="label">End Time</label>
-                  <input className="input" type="datetime-local" value={form.end_time} onChange={e => setForm({...form, end_time: e.target.value})} />
+                  <input className="input" type="datetime-local" value={form.end_time} onChange={e => setForm({...form, end_time: e.target.value})} disabled={user.role?.role_name !== 'super_admin'} />
                 </div>
                 <div style={{ gridColumn: 'span 2' }}>
                   <label className="label">Session Staff (Instructors & Mentors)</label>
