@@ -23,8 +23,14 @@ const scanQR = async (req, res) => {
     }
 
     // 2. Get session
+    const parsedSessionId = sessionId ? parseInt(sessionId) : qrToken.session_id;
+    
+    if (isNaN(parsedSessionId)) {
+      return res.status(400).json({ success: false, message: 'Invalid Session ID' });
+    }
+
     const session = await prisma.session.findUnique({
-      where: { id: sessionId || qrToken.session_id },
+      where: { id: parsedSessionId },
       include: { group: true },
     });
 
