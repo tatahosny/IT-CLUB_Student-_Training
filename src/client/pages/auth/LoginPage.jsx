@@ -16,6 +16,7 @@ import { useAuthStore } from "../../store/authStore";
 import { authApi, adminApi, attendanceApi, sessionApi, taskApi, gradingApi } from "../../api/adminApi";
 import Logo from "../../components/common/Logo";
 import { ROLE_COLORS, ACTION_COLORS } from "../../utils/constants";
+import { generateFingerprint } from "../../utils/helpers";
 
 export default function LoginPage() {
   const navigate = useNavigate(); const { setAuth, isAuthenticated, user } = useAuthStore()
