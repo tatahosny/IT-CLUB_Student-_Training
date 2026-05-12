@@ -9,7 +9,7 @@ import {
   BookOpen, ClipboardList, BarChart3, GraduationCap, CheckSquare, Cpu, Eye, EyeOff, LogIn, Zap, CheckCircle, AlertCircle,
   Search, Filter, Download, Upload, Plus, Trash2, Edit3, MoreVertical, Key, Clock, Calendar, MapPin, UserCheck, UserX,
   ExternalLink, FileText, Info, AlertTriangle, Play, Square, QrCode, RefreshCw, Send, ArrowLeft, Star, Award, CheckCheck, TrendingUp,
-  XCircle, ChevronUp, ChevronDown, Wifi, Check, Activity, Edit
+  XCircle, ChevronUp, ChevronDown, Wifi, Check, Activity, Edit, Lock
 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, PieChart, Pie, Cell } from "recharts";
 import { useAuthStore } from "@/store/authStore";
@@ -19,9 +19,33 @@ import { ROLE_COLORS, ACTION_COLORS } from "@/utils/constants";
 import QRScanner from "@/components/qr/QRScanner";
 
 export default function StudentLayout() {
-  const { user, logout } = useAuthStore(); const navigate = useNavigate(); const [scannerOpen, setScannerOpen] = useState(false); const [mobileOpen, setMobileOpen] = useState(false); const [collapsed, setCollapsed] = useState(false)
+  const { user, logout } = useAuthStore(); const navigate = useNavigate(); 
+  const [scannerOpen, setScannerOpen] = useState(false); const [mobileOpen, setMobileOpen] = useState(false); const [collapsed, setCollapsed] = useState(false)
   const [deferredPrompt, setDeferredPrompt] = useState(null);
-  
+  const [timeLeft, setTimeLeft] = useState(null);
+
+  // Countdown timer for blocked users
+  useEffect(() => {
+    if (user?.is_blocked && user?.blocked_until) {
+      const interval = setInterval(() => {
+        const now = new Date().getTime();
+        const end = new Date(user.blocked_until).getTime();
+        const diff = end - now;
+        if (diff <= 0) {
+          setTimeLeft(null);
+          clearInterval(interval);
+          // Optional: Re-fetch user or logout to refresh state
+        } else {
+          const h = Math.floor(diff / (1000 * 60 * 60));
+          const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+          const s = Math.floor((diff % (1000 * 60)) / 1000);
+          setTimeLeft(`${h}h ${m}m ${s}s`);
+        }
+      }, 1000);
+      return () => clearInterval(interval);
+    }
+  }, [user]);
+
   useEffect(() => {
     const handleBeforeInstallPrompt = (e) => {
       e.preventDefault();
@@ -39,6 +63,38 @@ export default function StudentLayout() {
   };
 
   const handleLogout = async () => { try { await authApi.logout() } catch {} logout(); navigate('/login'); toast.success('Logged out') }
+  
+  if (user?.is_blocked && timeLeft) {
+    return (
+      <div style={{ height: '100vh', background: 'var(--color-bg-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, position: 'relative', overflow: 'hidden' }}>
+        <div className="bg-circuit" style={{ position: 'absolute', inset: 0, opacity: 0.3 }} />
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
+          style={{ width: '100%', maxWidth: 500, background: 'rgba(11, 22, 34, 0.95)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: 32, padding: 48, textAlign: 'center', zIndex: 1, boxShadow: '0 32px 64px rgba(0,0,0,0.5)' }}
+        >
+          <div style={{ width: 80, height: 80, borderRadius: '50%', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#EF4444', margin: '0 auto 32px' }}>
+            <Lock size={40} />
+          </div>
+          <h2 style={{ fontSize: 28, fontWeight: 800, marginBottom: 16 }}>Portal Locked</h2>
+          <p style={{ color: 'var(--color-text-muted)', lineHeight: 1.6, marginBottom: 40 }}>
+            Your account has been suspended for 24 hours due to <strong>attendance fraud detection</strong>. Please wait for the timer to expire.
+          </p>
+          
+          <div style={{ padding: '24px', borderRadius: 20, background: 'rgba(239, 68, 68, 0.05)', border: '1px solid rgba(239, 68, 68, 0.1)', marginBottom: 40 }}>
+            <div style={{ fontSize: 12, textTransform: 'uppercase', color: 'var(--color-cyan)', fontWeight: 700, letterSpacing: 2, marginBottom: 12 }}>Time Remaining</div>
+            <div style={{ fontSize: 48, fontWeight: 900, fontFamily: "'Orbitron', sans-serif", color: '#EAFBFF', textShadow: '0 0 20px rgba(18, 214, 255, 0.3)' }}>
+              {timeLeft}
+            </div>
+          </div>
+
+          <button onClick={handleLogout} className="btn" style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)' }}>
+            <LogOut size={18} /> Logout
+          </button>
+        </motion.div>
+      </div>
+    );
+  }
+
   const navItems = [
     { path: '/student', label: 'Dashboard', icon: LayoutDashboard, exact: true },
     { path: '/student/tasks', label: 'Tasks', icon: ClipboardList },
