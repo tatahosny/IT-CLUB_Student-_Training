@@ -23,6 +23,7 @@ export default function SessionManagement() {
   const navigate = useNavigate()
   const { user } = useAuthStore()
   const [showCreate, setShowCreate] = useState(false)
+  const [editingSession, setEditingSession] = useState(null)
   const [confirmDelete, setConfirmDelete] = useState(null)
   const [search, setSearch] = useState('')
   const [form, setForm] = useState({ title: '', room_number: '', start_time: '', end_time: '', session_type: 'workshop' })
@@ -33,9 +34,9 @@ export default function SessionManagement() {
     refetchInterval: 15000,
   })
 
-  const { data: instructors } = useQuery({ 
-    queryKey: ['instructors-list'], 
-    queryFn: () => adminApi.getUsers({ role: 'instructor', limit: 100 }).then(r => r.data.data) 
+  const { data: staff } = useQuery({ 
+    queryKey: ['staff-list'], 
+    queryFn: () => adminApi.getUsers({ limit: 200 }).then(r => r.data.data.filter(u => ['instructor', 'mentor', 'mentor_manager'].includes(u.role?.role_name))) 
   })
 
   const [selectedInstructors, setSelectedInstructors] = useState([user.id])
@@ -46,8 +47,14 @@ export default function SessionManagement() {
 
   const createMutation = useMutation({
     mutationFn: (data) => sessionApi.create({ ...data, instructor_ids: selectedInstructors }),
-    onSuccess: () => { queryClient.invalidateQueries(['my-sessions']); setShowCreate(false); toast.success('Session created!') },
+    onSuccess: () => { queryClient.invalidateQueries(['my-sessions']); setShowCreate(false); setEditingSession(null); toast.success('Session created!') },
     onError: (e) => toast.error(e.response?.data?.message || 'Failed'),
+  })
+
+  const updateMutation = useMutation({
+    mutationFn: (data) => sessionApi.update(editingSession.id, { ...data, instructor_ids: selectedInstructors }),
+    onSuccess: () => { queryClient.invalidateQueries(['my-sessions']); setShowCreate(false); setEditingSession(null); toast.success('Session updated!') },
+    onError: (e) => toast.error(e.response?.data?.message || 'Update failed'),
   })
 
   const deleteMutation = useMutation({
@@ -63,6 +70,26 @@ export default function SessionManagement() {
     s.room_number?.toLowerCase().includes(search.toLowerCase())
   )
 
+  const openCreate = () => {
+    setEditingSession(null)
+    setForm({ title: '', room_number: '', start_time: '', end_time: '', session_type: 'workshop' })
+    setSelectedInstructors([user.id])
+    setShowCreate(true)
+  }
+
+  const openEdit = (session) => {
+    setEditingSession(session)
+    setForm({
+      title: session.title,
+      room_number: session.room_number || '',
+      start_time: session.start_time ? new Date(session.start_time).toISOString().slice(0, 16) : '',
+      end_time: session.end_time ? new Date(session.end_time).toISOString().slice(0, 16) : '',
+      session_type: session.session_type || 'workshop'
+    })
+    setSelectedInstructors(session.instructors?.map(i => i.id) || [user.id])
+    setShowCreate(true)
+  }
+
   return (
     <div>
       <div style={{ marginBottom: 28, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -74,7 +101,7 @@ export default function SessionManagement() {
             {activeSessions.length} active sessions • {sessions.length} total assigned
           </p>
         </div>
-        <button className="btn btn-primary" onClick={() => setShowCreate(true)}>
+        <button className="btn btn-primary" onClick={openCreate}>
           <Plus size={18} /> New Workshop
         </button>
       </div>
@@ -174,6 +201,9 @@ export default function SessionManagement() {
                       <button className="btn btn-ghost btn-sm" onClick={() => navigate(`/instructor/sessions/${s.id}/attendance`)} title="Attendance Control">
                         <Users size={14} />
                       </button>
+                      <button className="btn btn-ghost btn-sm" onClick={() => openEdit(s)} title="Edit Staff/Session">
+                        <Edit size={14} style={{ color: 'var(--color-cyan)' }} />
+                      </button>
                       <button className="btn btn-ghost btn-sm" onClick={() => setConfirmDelete(s.id)} style={{ color: 'var(--color-red)' }}>
                         <Trash2 size={14} />
                       </button>
@@ -190,7 +220,7 @@ export default function SessionManagement() {
         {showCreate && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }} onClick={e => e.target === e.currentTarget && setShowCreate(false)}>
             <motion.div initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }} className="glass-card" style={{ width: '100%', maxWidth: 550, padding: 32 }}>
-              <h2 style={{ fontSize: 20, fontWeight: 800, marginBottom: 24 }}>Create New Workshop</h2>
+              <h2 style={{ fontSize: 20, fontWeight: 800, marginBottom: 24 }}>{editingSession ? 'Edit Session Staff' : 'Create New Workshop'}</h2>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                 <div style={{ gridColumn: 'span 2' }}>
                   <label className="label">Workshop Title</label>
@@ -216,24 +246,34 @@ export default function SessionManagement() {
                   <input className="input" type="datetime-local" value={form.end_time} onChange={e => setForm({...form, end_time: e.target.value})} />
                 </div>
                 <div style={{ gridColumn: 'span 2' }}>
-                  <label className="label">Collaborating Instructors</label>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, maxHeight: 120, overflowY: 'auto', padding: 4 }}>
-                    {instructors?.filter(i => i.id !== user.id).map(ins => (
+                  <label className="label">Session Staff (Instructors & Mentors)</label>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, maxHeight: 150, overflowY: 'auto', padding: 4, background: 'rgba(255,255,255,0.02)', borderRadius: 10, border: '1px solid var(--glass-border)' }}>
+                    {staff?.filter(i => i.id !== user.id).map(ins => (
                       <label key={ins.id} style={{ 
-                        padding: '6px 12px', borderRadius: 8, fontSize: 12, cursor: 'pointer',
+                        padding: '6px 12px', borderRadius: 8, fontSize: 11, cursor: 'pointer',
                         background: selectedInstructors.includes(ins.id) ? 'rgba(0,212,255,0.1)' : 'rgba(255,255,255,0.03)',
                         border: `1px solid ${selectedInstructors.includes(ins.id) ? 'var(--color-cyan)' : 'var(--glass-border)'}`,
+                        transition: 'all 0.2s',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 6
                       }}>
                         <input type="checkbox" style={{ display: 'none' }} checked={selectedInstructors.includes(ins.id)} onChange={() => toggleInstructor(ins.id)} />
-                        {ins.full_name}
+                        <span>{ins.full_name}</span>
+                        <span style={{ fontSize: 9, opacity: 0.6, textTransform: 'uppercase' }}>({ins.role?.role_name?.replace('_', ' ')})</span>
                       </label>
                     ))}
                   </div>
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 12, marginTop: 32 }}>
-                <button className="btn btn-primary" style={{ flex: 1, height: 44 }} onClick={() => createMutation.mutate(form)} disabled={createMutation.isPending}>
-                  {createMutation.isPending ? 'Creating...' : 'Create Session'}
+                <button 
+                  className="btn btn-primary" 
+                  style={{ flex: 1, height: 44 }} 
+                  onClick={() => editingSession ? updateMutation.mutate(form) : createMutation.mutate(form)} 
+                  disabled={createMutation.isPending || updateMutation.isPending}
+                >
+                  {createMutation.isPending || updateMutation.isPending ? 'Saving...' : (editingSession ? 'Save Changes' : 'Create Session')}
                 </button>
                 <button className="btn btn-ghost" style={{ height: 44 }} onClick={() => setShowCreate(false)}>Cancel</button>
               </div>
