@@ -31,7 +31,7 @@ const scanQR = async (req, res) => {
 
     const session = await prisma.session.findUnique({
       where: { id: parsedSessionId },
-      include: { group: true },
+      include: { group: true, instructors: { select: { full_name: true } } },
     });
 
     if (!session || !session.is_active) {
@@ -110,7 +110,35 @@ const scanQR = async (req, res) => {
       return res.status(200).json({
         success: false,
         message: 'Attendance already recorded',
-        data: { student: { full_name: student.full_name, academic_number: student.academic_number } },
+        data: {
+          student: { full_name: student.full_name, academic_number: student.academic_number },
+          session: { title: session.title }
+        }
+      });
+    }
+
+    // ─── PREVIEW MODE FOR STAFF ───
+    // If it's a staff member scanning and 'confirm' is not true, return preview data
+    if (scannerRole !== 'student' && !req.body.confirm) {
+      return res.json({
+        success: true,
+        preview: true,
+        data: {
+          student: {
+            id: student.id,
+            full_name: student.full_name,
+            academic_number: student.academic_number,
+            avatar: student.avatar
+          },
+          session: {
+            id: session.id,
+            title: session.title,
+            type: session.session_type,
+            room: session.room_number,
+            instructors: session.instructors?.map(i => i.full_name).join(', ') || 'N/A'
+          },
+          attendanceType: attendanceType || 'first'
+        }
       });
     }
 
