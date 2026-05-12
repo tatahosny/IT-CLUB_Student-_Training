@@ -19,11 +19,21 @@ const app = express();
 // ─── SECURITY ─────────────────────────────────────────────
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://*"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://*"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com", "https://fonts.googleapis.com", "data:", "https://*"],
+      imgSrc: ["'self'", "data:", "blob:", "https://*"],
+      connectSrc: ["'self'", "https://*", "wss://*", "ws://*"],
+    },
+  },
 }));
 
 // ─── CORS ─────────────────────────────────────────────────
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'https://it-club-student-training.vercel.app/',
+  origin: process.env.CLIENT_URL || 'https://it-clubstudent-training-production.up.railway.app',
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
 }));
@@ -57,13 +67,13 @@ app.use('/uploads', express.static(path.join(__dirname, '../../uploads')));
 
 // Serve React static files in production
 if (process.env.NODE_ENV === 'production') {
-  const distPath = path.resolve(__dirname, '../../dist');
+  const distPath = path.join(process.cwd(), 'dist');
   app.use(express.static(distPath));
   
   app.get('*splat', (req, res, next) => {
     if (req.path.startsWith('/api')) return next();
     
-    const indexPath = path.join(distPath, 'index.html');
+    const indexPath = path.join(process.cwd(), 'dist', 'index.html');
     if (require('fs').existsSync(indexPath)) {
       res.sendFile(indexPath);
     } else {
