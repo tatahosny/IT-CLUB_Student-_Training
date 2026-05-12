@@ -249,9 +249,9 @@ export default function AttendanceControl() {
                   <button onClick={() => setIsEditing(false)} className="text-red-400"><X size={14} /></button>
                 </div>
               ) : (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: canEditSession ? 'pointer' : 'default' }} onClick={() => canEditSession && (setEditValue(customLabel || ''), setIsEditing(true))}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: isSuperAdmin ? 'pointer' : 'default' }} onClick={() => isSuperAdmin && (setEditValue(customLabel || ''), setIsEditing(true))}>
                   <span style={{ color: customLabel ? 'var(--color-cyan)' : 'inherit', fontWeight: customLabel ? 600 : 400 }}>{displayRole}</span>
-                  {canEditSession && <Edit3 size={10} style={{ opacity: 0.5 }} />}
+                  {isSuperAdmin && <Edit3 size={10} style={{ opacity: 0.5 }} />}
                 </div>
               )}
             </div>
@@ -298,7 +298,7 @@ export default function AttendanceControl() {
             <h3 style={{ fontSize: 16, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
               <Calendar size={18} className="text-cyan-400" /> Session Info
             </h3>
-            {canEditSession && !isEditingInfo && (
+            {isSuperAdmin && !isEditingInfo && (
               <button onClick={handleEditInfo} className="btn btn-sm btn-ghost" style={{ padding: '4px 8px' }}>
                 <Edit size={14} /> Edit
               </button>
@@ -353,7 +353,7 @@ export default function AttendanceControl() {
             </div>
           )}
 
-          {canEditSession && (
+          {isSuperAdmin && (
             <div style={{ padding: 12, borderRadius: 12, background: session?.is_active ? 'rgba(34, 197, 94, 0.1)' : 'rgba(255, 255, 255, 0.03)', border: session?.is_active ? '1px solid rgba(34, 197, 94, 0.2)' : '1px solid var(--glass-border)', marginBottom: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div>
                 <div style={{ fontSize: 13, fontWeight: 700, color: session?.is_active ? 'var(--color-green)' : 'var(--color-text-primary)' }}>
@@ -389,7 +389,7 @@ export default function AttendanceControl() {
             <h3 style={{ fontSize: 16, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
               <Users size={18} className="text-purple-400" /> Assigned Staff
             </h3>
-            {hasEditPerm && (
+            {canEditSession && (
               <button onClick={() => setAddStaffMode(!addStaffMode)} className="btn btn-sm btn-outline" style={{ fontSize: 11, padding: '4px 8px' }}>
                 {addStaffMode ? 'Cancel' : '+ Add Staff'}
               </button>
@@ -559,7 +559,7 @@ export default function AttendanceControl() {
                     {record.scanner_role || (record.is_present ? 'QR Code' : '—')}
                   </td>
                   <td>
-                    {!isMentor && (isSuperAdmin || isInstructor) && (
+                    {isSuperAdmin && (
                       <button 
                         onClick={() => markMutation.mutate({ sessionId: id, studentId: record.student_id, attendanceType: 'first', isPresent: !record.is_present })}
                         className={`btn btn-sm ${record.is_present ? 'btn-danger' : 'btn-primary'}`}
