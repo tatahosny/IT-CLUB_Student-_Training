@@ -11,17 +11,17 @@ import {
   ExternalLink, FileText, Info, AlertTriangle, Play, Square, QrCode, RefreshCw, Send, ArrowLeft, Star, Award, CheckCheck, TrendingUp,
   XCircle, ChevronUp, ChevronDown, Wifi, Check, Activity, Edit
 } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, PieChart, Pie, Cell } from "recharts";
-import { useAuthStore } from "../../store/authStore";
-import { authApi, adminApi, attendanceApi, sessionApi, taskApi, gradingApi } from "../../api/adminApi";
-import Logo from "../../components/common/Logo";
-import { ROLE_COLORS, ACTION_COLORS } from "../../utils/constants";
-import { generateFingerprint } from "../../utils/helpers";
+import { useAuthStore } from "@/store/authStore";
+import { authApi, adminApi, attendanceApi, sessionApi, taskApi, gradingApi } from "@/api/adminApi";
+import Logo from "@/components/common/Logo";
+import { generateFingerprint } from "@/utils/helpers";
 
 export default function LoginPage() {
   const navigate = useNavigate(); const { setAuth, isAuthenticated, user } = useAuthStore()
   const [showPassword, setShowPassword] = useState(false); const [loading, setLoading] = useState(false)
+  const [blockedInfo, setBlockedInfo] = useState(null);
   const { register, handleSubmit, formState: { errors } } = useForm()
+
   useEffect(() => {
     if (!localStorage.getItem('device_fingerprint')) localStorage.setItem('device_fingerprint', generateFingerprint())
     if (isAuthenticated && user) {
@@ -33,27 +33,28 @@ export default function LoginPage() {
       }
     }
   }, [isAuthenticated])
+
   const onSubmit = async (data) => {
     setLoading(true); try {
       const res = await authApi.login(data); const { user, accessToken, refreshToken } = res.data.data
       setAuth(user, accessToken, refreshToken); toast.success(`Welcome back, ${user.full_name.split(' ')[0]}! 👋`)
-    } catch (e) { toast.error(e.response?.data?.message || 'Login failed') } finally { setLoading(false) }
+    } catch (e) { 
+      if (e.response?.status === 403) {
+        setBlockedInfo({
+          message: e.response.data.message,
+          blockedUntil: e.response.data.blockedUntil
+        });
+      } else {
+        toast.error(e.response?.data?.message || 'Login failed');
+      }
+    } finally { setLoading(false) }
   }
+
   return (
     <div style={{ minHeight: '100vh', background: 'var(--color-bg-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden' }}>
       {/* Background effects */}
       <div style={{ position: 'absolute', inset: 0 }} className="bg-circuit" />
-      <div style={{ 
-        position: 'absolute', top: '-10%', left: '-10%', width: '40%', height: '40%', 
-        background: 'radial-gradient(circle, rgba(18, 214, 255, 0.1) 0%, transparent 70%)', 
-        filter: 'blur(60px)', pointerEvents: 'none' 
-      }} />
-      <div style={{ 
-        position: 'absolute', bottom: '-10%', right: '-10%', width: '40%', height: '40%', 
-        background: 'radial-gradient(circle, rgba(155, 234, 39, 0.08) 0%, transparent 70%)', 
-        filter: 'blur(60px)', pointerEvents: 'none' 
-      }} />
-
+      
       <motion.div 
         initial={{ opacity: 0, y: 30 }} 
         animate={{ opacity: 1, y: 0 }} 
@@ -61,27 +62,12 @@ export default function LoginPage() {
       >
         <div style={{ textAlign: 'center', marginBottom: 40 }}>
           <Logo size={90} style={{ margin: '0 auto 24px', justifyContent: 'center' }} />
-          <p style={{ 
-            color: 'var(--color-text-muted)', fontSize: 13, 
-            letterSpacing: '0.3em', fontWeight: 700, textTransform: 'uppercase', 
-            marginTop: 8, opacity: 0.8 
-          }}>
-            Strategic Training Ecosystem
-          </p>
         </div>
         <motion.div 
-          initial={{ scale: 0.95 }}
-          animate={{ scale: 1 }}
+          initial={{ scale: 0.95 }} animate={{ scale: 1 }}
           className="glass-card" 
           style={{ padding: 40, position: 'relative', border: '1px solid rgba(18, 214, 255, 0.15)' }}
         >
-          {/* Subtle glow border top */}
-          <div style={{ 
-            position: 'absolute', top: 0, left: '10%', right: '10%', height: 1, 
-            background: 'linear-gradient(90deg, transparent, var(--color-cyan), transparent)', 
-            boxShadow: '0 0 10px var(--color-cyan)' 
-          }} />
-
           <h2 style={{ fontSize: 24, fontWeight: 800, marginBottom: 8 }}>Sign In</h2>
           <p style={{ fontSize: 13, color: 'var(--color-text-muted)', marginBottom: 32 }}>Enter your credentials to access the system</p>
           
@@ -107,46 +93,62 @@ export default function LoginPage() {
                   {...register('password', { required: 'Password is required' })} 
                   type={showPassword ? 'text' : 'password'} 
                   className={`input ${errors.password ? 'input-error' : ''}`} 
-                  placeholder="Enter your password" 
-                  style={{ paddingLeft: 44, paddingRight: 48 }} 
+                  placeholder="••••••••" 
+                  style={{ paddingLeft: 44 }} 
                 />
-                <Key size={18} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-cyan)', opacity: 0.7 }} />
+                <Shield size={18} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-cyan)', opacity: 0.7 }} />
                 <button 
                   type="button" 
-                  onClick={() => setShowPassword(!showPassword)} 
-                  style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)' }}
+                  onClick={() => setShowPassword(!showPassword)}
+                  style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--color-text-muted)', cursor: 'pointer' }}
                 >
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
             </div>
 
-            <button 
-              type="submit" 
-              className="btn btn-primary" 
-              style={{ width: '100%', height: 52, fontSize: 16, borderRadius: 12 }} 
-              disabled={loading}
-            >
-              {loading ? (
-                <RefreshCw size={20} className="animate-spin" />
-              ) : (
-                <>
-                  <span>Sign In to System</span>
-                  <Zap size={18} />
-                </>
-              )}
+            <button disabled={loading} type="submit" className="btn btn-primary" style={{ width: '100%', height: 48, fontSize: 15 }}>
+              {loading ? <RefreshCw className="spin" size={20} /> : <><Zap size={20} /> Authenticate Session</>}
             </button>
           </form>
         </motion.div>
-
-        <div style={{ marginTop: 32, textAlign: 'center', opacity: 0.7, fontSize: 11, lineHeight: 1.8 }}>
-          <div style={{ color: 'var(--color-text-muted)' }}>
-            All Rights Reserved © {new Date().getFullYear()} — 
-            <span style={{ color: 'var(--color-cyan)', fontWeight: 800, margin: '0 4px' }}>IT CLUB</span>
-          </div>
-          <div style={{ fontSize: 10, letterSpacing: '0.05em' }}>Borg El Arab Technological University — EdTech Exchange</div>
-        </div>
       </motion.div>
+
+      {/* Blocked Modal */}
+      <AnimatePresence>
+        {blockedInfo && (
+          <motion.div 
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, background: 'rgba(5, 10, 20, 0.9)', backdropFilter: 'blur(10px)' }}
+          >
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
+              style={{ width: '100%', maxWidth: 400, background: 'rgba(11, 22, 34, 0.95)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: 24, padding: 32, textAlign: 'center', boxShadow: '0 24px 50px rgba(239, 68, 68, 0.15)' }}
+            >
+              <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#EF4444', margin: '0 auto 24px' }}>
+                <AlertTriangle size={32} />
+              </div>
+              <h3 style={{ fontSize: 20, fontWeight: 800, color: '#EAFBFF', marginBottom: 12 }}>Access Suspended</h3>
+              <p style={{ fontSize: 14, color: 'var(--color-text-muted)', lineHeight: 1.6, marginBottom: 24 }}>
+                {blockedInfo.message}
+              </p>
+              <div style={{ padding: '12px 16px', borderRadius: 12, background: 'rgba(255,255,255,0.03)', border: '1px solid var(--glass-border)', marginBottom: 24 }}>
+                <div style={{ fontSize: 11, textTransform: 'uppercase', color: 'var(--color-cyan)', fontWeight: 700, letterSpacing: 1, marginBottom: 4 }}>Locked Until</div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: '#EAFBFF' }}>
+                  {new Date(blockedInfo.blockedUntil).toLocaleString()}
+                </div>
+              </div>
+              <button 
+                onClick={() => setBlockedInfo(null)}
+                className="btn" 
+                style={{ width: '100%', background: 'rgba(239, 68, 68, 0.1)', color: '#EF4444', border: '1px solid rgba(239, 68, 68, 0.2)' }}
+              >
+                Understood
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
-  )
+  );
 }
