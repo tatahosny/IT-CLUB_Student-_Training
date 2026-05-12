@@ -62,7 +62,13 @@ if (process.env.NODE_ENV === 'production') {
   
   app.get('*splat', (req, res, next) => {
     if (req.path.startsWith('/api')) return next();
-    res.sendFile(path.join(distPath, 'index.html'));
+    
+    const indexPath = path.join(distPath, 'index.html');
+    if (require('fs').existsSync(indexPath)) {
+      res.sendFile(indexPath);
+    } else {
+      res.status(500).send('Frontend build (dist/index.html) not found. Please ensure "npm run build" completed successfully.');
+    }
   });
 } else {
   app.get('/', (req, res) => {
