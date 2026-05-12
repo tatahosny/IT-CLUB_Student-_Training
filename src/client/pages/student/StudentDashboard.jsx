@@ -9,14 +9,15 @@ import {
   BookOpen, ClipboardList, BarChart3, GraduationCap, CheckSquare, Cpu, Eye, EyeOff, LogIn, Zap, CheckCircle, AlertCircle,
   Search, Filter, Download, Upload, Plus, Trash2, Edit3, MoreVertical, Key, Clock, Calendar, MapPin, UserCheck, UserX,
   ExternalLink, FileText, Info, AlertTriangle, Play, Square, QrCode, RefreshCw, Send, ArrowLeft, Star, Award, CheckCheck, TrendingUp,
-  XCircle, ChevronUp, ChevronDown, Wifi, Check, Activity, Edit
+  XCircle, ChevronUp, ChevronDown, Wifi, Check, Activity, Edit, FolderOpen
 } from "lucide-react";
+import QRCode from "qrcode";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, PieChart, Pie, Cell } from "recharts";
-import { useAuthStore } from "../../store/authStore";
-import { authApi, adminApi, attendanceApi, sessionApi, taskApi, gradingApi } from "../../api/adminApi";
-import Logo from "../../components/common/Logo";
-import TaskCard from "../../components/common/TaskCard";
-import { ROLE_COLORS, ACTION_COLORS } from "../../utils/constants";
+import { useAuthStore } from "@/store/authStore";
+import { authApi, adminApi, attendanceApi, sessionApi, taskApi, gradingApi } from "@/api/adminApi";
+import Logo from "@/components/common/Logo";
+import TaskCard from "@/components/common/TaskCard";
+import { ROLE_COLORS, ACTION_COLORS } from "@/utils/constants";
 
 export default function StudentDashboard() {
   const { user } = useAuthStore()
@@ -61,9 +62,20 @@ export default function StudentDashboard() {
   const generateMyQR = async (sessionId) => {
     setLoading(true); try {
       const res = await attendanceApi.getMyQR(sessionId); const token = res.data.data; setQrData(token)
-      const dataUrl = await QRCode.toDataURL(`IT-QR:${token.qr_code}`, { width: 280, margin: 3, color: { dark: '#00d4ff', light: '#060b18' } })
-      setQrImage(dataUrl); setSelectedSession(sessionId)
-    } catch (e) { toast.error(e.response?.data?.message || 'Failed to generate QR') } finally { setLoading(false) }
+      const dataUrl = await QRCode.toDataURL(`IT-QR:${token.qr_code}`, { 
+        width: 300, 
+        margin: 2,
+        color: {
+          dark: '#00d4ff',
+          light: '#060b18'
+        }
+      });
+      setQrImage(dataUrl); setSelectedSession(sessionId);
+    } catch (e) { 
+      const errorMsg = e.response?.data?.message || e.message || 'Failed to generate QR';
+      console.error('QR Generation Error:', e);
+      toast.error(errorMsg);
+    } finally { setLoading(false) }
   }
 
   const isExpired = qrData && new Date() > new Date(qrData.expires_at)
