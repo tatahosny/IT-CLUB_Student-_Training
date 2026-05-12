@@ -170,10 +170,16 @@ const scanQR = async (req, res) => {
 const getMyQR = async (req, res) => {
   try {
     const studentId = req.user.id;
-    const { sessionId } = req.params;
+    console.log(`[DEBUG] getMyQR request for Student: ${studentId}, Session: ${req.params.sessionId}`);
+    const { sessionId: rawSessionId } = req.params;
+    const sessionId = parseInt(rawSessionId);
 
-    const session = await prisma.session.findUnique({ where: { id: parseInt(sessionId) } });
-    if (!session) return res.status(404).json({ success: false, message: 'Session not found' });
+    if (isNaN(sessionId)) {
+      return res.status(400).json({ success: false, message: 'Invalid Session ID provided' });
+    }
+
+    const session = await prisma.session.findUnique({ where: { id: sessionId } });
+    if (!session) return res.status(404).json({ success: false, message: 'Session not found (ID: ' + sessionId + ')' });
 
     // ─── FRAUD DETECTION ───
     if (req.fraudDetected) {
@@ -182,7 +188,7 @@ const getMyQR = async (req, res) => {
       // Remove attendance from both accounts
       await prisma.attendance.deleteMany({
         where: {
-          session_id: parseInt(sessionId),
+          session_id: sessionId,
           student_id: { in: [req.fraudDetected.currentUserId, req.fraudDetected.suspectUserId] },
         },
       });
@@ -199,7 +205,7 @@ const getMyQR = async (req, res) => {
         io.to('admin_room').emit('fraud_detected', {
           users: [req.fraudDetected.currentUserId, req.fraudDetected.suspectUserId],
           fingerprint: req.fraudDetected.fingerprint,
-          sessionId: parseInt(sessionId),
+          sessionId: sessionId,
         });
       }
 
@@ -215,13 +221,13 @@ const getMyQR = async (req, res) => {
 
     // Deactivate old personal QR for this student+session
     await prisma.qrToken.updateMany({
-      where: { session_id: parseInt(sessionId), user_id: studentId, is_active: true },
+      where: { session_id: sessionId, user_id: studentId, is_active: true },
       data: { is_active: false },
     });
 
     const qrToken = await prisma.qrToken.create({
       data: {
-        session_id: parseInt(sessionId),
+        session_id: sessionId,
         user_id: studentId,
         qr_code: qrCode,
         expires_at: expiresAt,
@@ -231,7 +237,8 @@ const getMyQR = async (req, res) => {
 
     res.json({ success: true, data: qrToken });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Server error' });
+    console.error('getMyQR Error:', error);
+    res.status(500).json({ success: false, message: 'Server error: ' + error.message });
   }
 };
 
