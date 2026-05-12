@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
-import { useNavigate, useParams, useSearchParams, useLocation, Navigate, Link, NavLink } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams, useLocation, Navigate, Link, NavLink, Outlet } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useForm } from "react-hook-form";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -12,10 +12,10 @@ import {
   XCircle, ChevronUp, ChevronDown, Wifi, Check, Activity, Edit
 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, PieChart, Pie, Cell } from "recharts";
-import { useAuthStore } from "../store/authStore";
-import { authApi, adminApi, attendanceApi, sessionApi, taskApi, gradingApi } from "../api/adminApi";
-import Logo from "../components/common/Logo";
-import { ROLE_COLORS, ACTION_COLORS } from "../utils/constants";
+import { useAuthStore } from "@/store/authStore";
+import { authApi, adminApi, attendanceApi, sessionApi, taskApi, gradingApi } from "@/api/adminApi";
+import Logo from "@/components/common/Logo";
+import { ROLE_COLORS, ACTION_COLORS } from "@/utils/constants";
 
 export default function InstructorLayout() {
   const { user, logout } = useAuthStore(); const navigate = useNavigate(); const [mobileOpen, setMobileOpen] = useState(false); const [collapsed, setCollapsed] = useState(false)
@@ -122,5 +122,5 @@ export default function InstructorLayout() {
         <main style={{ flex: 1, overflow: 'auto', padding: 24, background: 'var(--color-bg-primary)' }} className="bg-dots main-content"><motion.div key={window.location.pathname} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}><Outlet /></motion.div></main>
       </div>
     </div>
-  )
+  );
 }
