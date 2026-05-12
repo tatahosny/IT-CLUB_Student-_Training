@@ -241,10 +241,18 @@ const getMyQR = async (req, res) => {
       },
     });
 
-    res.json({ success: true, data: qrToken });
+    if (!qrToken) {
+      throw new Error('Failed to create QR token in database');
+    }
+
+    return res.json({ success: true, data: qrToken });
   } catch (error) {
-    console.error('getMyQR Error:', error);
-    res.status(500).json({ success: false, message: 'Server error: ' + error.message });
+    console.error('[CRITICAL] getMyQR Error:', error);
+    return res.status(500).json({ 
+      success: false, 
+      message: 'Server error: ' + (error.message || 'Unknown database error'),
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 };
 
