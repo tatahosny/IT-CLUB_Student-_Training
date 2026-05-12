@@ -1,390 +1,165 @@
-const prisma = require('../config/db');
-const crypto = require('crypto');
+import React, { useState, useEffect, useRef, useMemo } from "react";
+import { useNavigate, useParams, useSearchParams, useLocation, Navigate, Link, NavLink, Outlet } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
+import { useForm } from "react-hook-form";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import toast from "react-hot-toast";
+import {
+  LayoutDashboard, Users, Shield, Monitor, Settings, LogOut, ChevronLeft, ChevronRight, Bell, Camera, Menu, X,
+  BookOpen, ClipboardList, BarChart3, GraduationCap, CheckSquare, Cpu, Eye, EyeOff, LogIn, Zap, CheckCircle, AlertCircle,
+  Search, Filter, Download, Upload, Plus, Trash2, Edit3, MoreVertical, Key, Clock, Calendar, MapPin, UserCheck, UserX,
+  ExternalLink, FileText, Info, AlertTriangle, Play, Square, QrCode, RefreshCw, Send, ArrowLeft, Star, Award, CheckCheck, TrendingUp,
+  XCircle, ChevronUp, ChevronDown, Wifi, Check, Activity, Edit
+} from "lucide-react";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, PieChart, Pie, Cell } from "recharts";
+import { useAuthStore } from "@/store/authStore";
+import { authApi, adminApi, attendanceApi, sessionApi, taskApi, gradingApi } from "@/api/adminApi";
+import Logo from "@/components/common/Logo";
+import { ROLE_COLORS, ACTION_COLORS } from "@/utils/constants";
+import QRScanner from "@/components/qr/QRScanner";
 
-/**
- * SCAN QR — Main attendance recording endpoint
- * Handles: personal QR scan, workshop shared QR, cheating detection
- */
-const scanQR = async (req, res) => {
-  try {
-    const { qrCode, sessionId, attendanceType, fingerprint } = req.body;
-    const scannerRole = req.user.role.role_name;
-    const ipAddress = req.ip;
+export default function StudentLayout() {
+  const { user, logout } = useAuthStore(); const navigate = useNavigate(); const [scannerOpen, setScannerOpen] = useState(false); const [mobileOpen, setMobileOpen] = useState(false); const [collapsed, setCollapsed] = useState(false)
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
+  
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+  }, []);
 
-    // 1. Validate QR token
-    const qrToken = await prisma.qrToken.findUnique({ where: { qr_code: qrCode } });
+  const handleInstallClick = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') setDeferredPrompt(null);
+  };
 
-    if (!qrToken || !qrToken.is_active) {
-      return res.status(400).json({ success: false, message: 'Invalid or expired QR code' });
-    }
-    if (new Date() > qrToken.expires_at) {
-      await prisma.qrToken.update({ where: { id: qrToken.id }, data: { is_active: false } });
-      return res.status(400).json({ success: false, message: 'QR code has expired' });
-    }
+  const handleLogout = async () => { try { await authApi.logout() } catch {} logout(); navigate('/login'); toast.success('Logged out') }
+  const navItems = [
+    { path: '/student', label: 'Dashboard', icon: LayoutDashboard, exact: true },
+    { path: '/student/tasks', label: 'Tasks', icon: ClipboardList },
+    { path: '/student/grades', label: 'My Grades', icon: Star },
+    { path: '/student/attendance', label: 'Attendance', icon: Clock },
+    { path: '/student/notifications', label: 'Notifications', icon: Bell },
+    { path: '/student/settings', label: 'Settings', icon: Settings },
+  ]
+  return (
+    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', position: 'relative' }}>
+      <AnimatePresence>{mobileOpen && <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setMobileOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 48, backdropFilter: 'blur(4px)' }} />}</AnimatePresence>
+      <aside className={`sidebar ${mobileOpen ? 'mobile-open' : ''}`} style={{
+        width: collapsed ? 72 : 260,
+        background: 'rgba(11, 22, 34, 0.8)',
+        backdropFilter: 'blur(24px)',
+        borderRight: '1px solid var(--glass-border)',
+        boxShadow: '4px 0 24px rgba(0,0,0,0.4)',
+        transition: 'width 0.3s ease-in-out',
+        display: 'flex',
+        flexDirection: 'column'
+      }}>
+        <div style={{ padding: '24px 20px', borderBottom: '1px solid var(--glass-border)', display: 'flex', justifyContent: collapsed ? 'center' : 'flex-start' }}>
+          <Logo size={32} showText={!collapsed} />
+        </div>
+        <div style={{ margin: 8, padding: '12px', borderRadius: 12, background: 'rgba(18, 214, 255, 0.04)', border: '1px solid var(--glass-border)', position: 'relative', overflow: 'hidden', display: 'flex', justifyContent: collapsed ? 'center' : 'flex-start' }}>
+          <div style={{ position: 'absolute', top: 0, right: 0, width: 2, height: '100%', background: 'linear-gradient(to bottom, var(--color-cyan), var(--color-lime))' }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ 
+              width: 36, height: 36, borderRadius: 10, 
+              background: 'linear-gradient(135deg, var(--color-cyan), var(--color-lime))', 
+              display: 'flex', alignItems: 'center', justifyContent: 'center', 
+              fontSize: 16, fontWeight: 800, color: '#07111B',
+              boxShadow: '0 0 10px var(--color-cyan-glow)',
+              flexShrink: 0
+            }}>
+              {user?.full_name?.[0]?.toUpperCase()}
+            </div>
+            {!collapsed && (
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-text-primary)', whiteSpace: 'nowrap' }}>{user?.full_name?.split(' ')[0]}</div>
+                <div style={{ fontSize: 10, color: 'var(--color-cyan)', fontWeight: 600 }}>#{user?.academic_number}</div>
+              </div>
+            )}
+          </div>
+        </div>
+        <nav style={{ flex: 1, padding: '0 8px', overflowY: 'auto' }}>
+          {navItems.map((item) => (
+            <NavLink 
+              key={item.path} to={item.path} end={item.exact} 
+              className={({ isActive }) => `sidebar-nav-item ${isActive ? 'active' : ''}`}
+              style={{ justifyContent: collapsed ? 'center' : undefined }}
+              title={collapsed ? item.label : undefined}
+            >
+              <item.icon size={18} style={{ flexShrink: 0 }} />
+              {!collapsed && <span>{item.label}</span>}
+            </NavLink>
+          ))}
+        </nav>
+        <div style={{ padding: '16px 8px', borderTop: '1px solid var(--glass-border)', background: 'rgba(0,0,0,0.1)' }}>
+          <AnimatePresence>
+            {deferredPrompt && (
+              <motion.button 
+                initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }}
+                onClick={handleInstallClick} 
+                className="btn btn-primary" 
+                style={{ width: '100%', marginBottom: 12, height: 44 }}
+              >
+                <Download size={16} /> Install System
+              </motion.button>
+            )}
+          </AnimatePresence>
+          <button onClick={handleLogout} className="sidebar-nav-item" style={{ 
+            width: '100%', color: 'var(--color-red)', cursor: 'pointer', 
+            background: 'var(--color-red-dim)', border: '1px solid rgba(239, 68, 68, 0.15)',
+            justifyContent: collapsed ? 'center' : undefined
+          }}>
+            <LogOut size={18} style={{ flexShrink: 0 }} />
+            {!collapsed && <span>Logout</span>}
+          </button>
+          {!collapsed && (
+            <div style={{ marginTop: 20, padding: '0 12px', opacity: 0.6, fontSize: 9, textAlign: 'center' }}>
+              <div style={{ color: 'var(--color-text-muted)' }}>© {new Date().getFullYear()} — <span style={{ color: 'var(--color-cyan)', fontWeight: 700 }}>Mostafa_Hosny</span></div>
+              <div style={{ marginTop: 2 }}>IT-CLUB Borg El Arab Technological University</div>
+            </div>
+          )}
+        </div>
+      </aside>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <header className="mobile-header" style={{ height: 64, background: 'rgba(11,22,34,0.95)', borderBottom: '1px solid rgba(18,214,255,0.07)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 24px', gap: 12, backdropFilter: 'blur(20px)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <button 
+              onClick={() => setMobileOpen(!mobileOpen)} 
+              className="mobile-header-btn" 
+              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', color: 'var(--color-text-primary)', cursor: 'pointer', width: 40, height: 40, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            >
+              {mobileOpen ? <X size={20} /> : <Menu size={20} />}
+            </button>
+            
+            {/* PC Sidebar Toggle */}
+            <button
+              onClick={() => setCollapsed(!collapsed)}
+              className="hide-mobile"
+              style={{
+                background: 'rgba(18, 214, 255, 0.08)', border: '1px solid rgba(18, 214, 255, 0.15)',
+                color: 'var(--color-cyan)', cursor: 'pointer',
+                width: 40, height: 40, borderRadius: 10,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                transition: 'all 0.2s'
+              }}
+              title={collapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+            >
+              {collapsed ? <Menu size={20} /> : <X size={20} />}
+            </button>
 
-    // 2. Get session
-    const session = await prisma.session.findUnique({
-      where: { id: sessionId || qrToken.session_id },
-      include: { group: true },
-    });
-
-    if (!session || !session.is_active) {
-      return res.status(400).json({ success: false, message: 'Session is not active' });
-    }
-
-    // 3. Determine student (for personal QR: student scans own; for staff: req.body.studentId)
-    let studentId;
-    if (scannerRole === 'student') {
-      studentId = req.user.id;
-    } else {
-      studentId = parseInt(req.body.studentId);
-    }
-
-    const student = await prisma.user.findUnique({
-      where: { id: studentId },
-      include: { role: true },
-    });
-
-    if (!student || student.role.role_name !== 'student') {
-      return res.status(400).json({ success: false, message: 'Student not found' });
-    }
-
-    // 4. Check fraud detection flag from deviceGuard middleware
-    if (req.fraudDetected && scannerRole === 'student') {
-      const blockUntil = new Date(Date.now() + 24 * 60 * 60 * 1000);
-
-      // Remove attendance from both accounts
-      await prisma.attendance.deleteMany({
-        where: {
-          session_id: session.id,
-          student_id: { in: [req.fraudDetected.currentUserId, req.fraudDetected.suspectUserId] },
-        },
-      });
-
-      // Block both accounts
-      await prisma.user.updateMany({
-        where: { id: { in: [req.fraudDetected.currentUserId, req.fraudDetected.suspectUserId] } },
-        data: { is_blocked: true, blocked_until: blockUntil },
-      });
-
-      // Notify admins via socket
-      const io = req.app.get('io');
-      if (io) {
-        io.to('admin_room').emit('fraud_detected', {
-          users: [req.fraudDetected.currentUserId, req.fraudDetected.suspectUserId],
-          fingerprint: req.fraudDetected.fingerprint,
-          sessionId: session.id,
-        });
-      }
-
-      return res.status(403).json({
-        success: false,
-        message: 'You are blocked for 24 hours due to attendance fraud attempt.',
-      });
-    }
-
-    // 5. Check if attendance already recorded
-    const existing = await prisma.attendance.findUnique({
-      where: {
-        session_id_student_id_attendance_type: {
-          session_id: session.id,
-          student_id: studentId,
-          attendance_type: attendanceType || 'first',
-        },
-      },
-    });
-
-    if (existing && existing.is_present) {
-      return res.status(200).json({
-        success: false,
-        message: 'Attendance already recorded',
-        data: { student: { full_name: student.full_name, academic_number: student.academic_number } },
-      });
-    }
-
-    // 6. Record attendance
-    const attendance = await prisma.attendance.upsert({
-      where: {
-        session_id_student_id_attendance_type: {
-          session_id: session.id,
-          student_id: studentId,
-          attendance_type: attendanceType || 'first',
-        },
-      },
-      update: {
-        is_present: true,
-        scanned_at: new Date(),
-        scanner_role: scannerRole,
-        device_id: fingerprint,
-        ip_address: ipAddress,
-      },
-      create: {
-        session_id: session.id,
-        student_id: studentId,
-        attendance_type: attendanceType || 'first',
-        is_present: true,
-        scanned_at: new Date(),
-        scanner_role: scannerRole,
-        device_id: fingerprint,
-        ip_address: ipAddress,
-      },
-    });
-
-    // 7. Invalidate personal QR (rotate) for next scan
-    if (qrToken.user_id) {
-      await prisma.qrToken.update({ where: { id: qrToken.id }, data: { is_active: false } });
-    }
-
-    // 8. Emit real-time update
-    const io = req.app.get('io');
-    if (io) {
-      io.to(`session_${session.id}`).emit('attendance_update', {
-        studentId,
-        studentName: student.full_name,
-        academicNumber: student.academic_number,
-        attendanceType: attendance.attendance_type,
-        scannedAt: attendance.scanned_at,
-      });
-    }
-
-    res.json({
-      success: true,
-      message: 'Attendance recorded successfully',
-      data: {
-        student: {
-          full_name: student.full_name,
-          academic_number: student.academic_number,
-          avatar: student.avatar,
-        },
-        attendance_type: attendance.attendance_type,
-        scanned_at: attendance.scanned_at,
-      },
-    });
-  } catch (error) {
-    console.error('ScanQR error:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
-  }
-};
-
-// ─── GET STUDENT PERSONAL QR ──────────────────────────────
-const getMyQR = async (req, res) => {
-  try {
-    const studentId = req.user.id;
-    const { sessionId: rawSessionId } = req.params;
-    const sessionId = parseInt(rawSessionId);
-
-    if (isNaN(sessionId)) {
-      return res.status(400).json({ success: false, message: 'Invalid Session ID provided' });
-    }
-
-    const session = await prisma.session.findUnique({ where: { id: sessionId } });
-    if (!session) return res.status(404).json({ success: false, message: 'Session not found (ID: ' + sessionId + ')' });
-
-    // ─── FRAUD DETECTION ───
-    if (req.fraudDetected) {
-      const blockUntil = new Date(Date.now() + 24 * 60 * 60 * 1000);
-
-      // Remove attendance from both accounts
-      await prisma.attendance.deleteMany({
-        where: {
-          session_id: sessionId,
-          student_id: { in: [req.fraudDetected.currentUserId, req.fraudDetected.suspectUserId] },
-        },
-      });
-
-      // Block both accounts
-      await prisma.user.updateMany({
-        where: { id: { in: [req.fraudDetected.currentUserId, req.fraudDetected.suspectUserId] } },
-        data: { is_blocked: true, blocked_until: blockUntil },
-      });
-
-      // Notify admins via socket
-      const io = req.app.get('io');
-      if (io) {
-        io.to('admin_room').emit('fraud_detected', {
-          users: [req.fraudDetected.currentUserId, req.fraudDetected.suspectUserId],
-          fingerprint: req.fraudDetected.fingerprint,
-          sessionId: sessionId,
-        });
-      }
-
-      return res.status(403).json({
-        success: false,
-        message: 'You are blocked for 24 hours due to attendance fraud attempt (Multiple accounts on same device).',
-      });
-    }
-
-    // Generate or get active QR for this student+session
-    const qrCode = crypto.randomBytes(32).toString('hex');
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
-
-    // Deactivate old personal QR for this student+session
-    await prisma.qrToken.updateMany({
-      where: { session_id: sessionId, user_id: studentId, is_active: true },
-      data: { is_active: false },
-    });
-
-    const qrToken = await prisma.qrToken.create({
-      data: {
-        session_id: sessionId,
-        user_id: studentId,
-        qr_code: qrCode,
-        expires_at: expiresAt,
-        is_active: true,
-      },
-    });
-
-    res.json({ success: true, data: qrToken });
-  } catch (error) {
-    console.error('getMyQR Error:', error);
-    res.status(500).json({ success: false, message: 'Server error: ' + error.message });
-  }
-};
-
-// ─── GET SESSION ATTENDANCE ───────────────────────────────
-const getSessionAttendance = async (req, res) => {
-  try {
-    const { sessionId } = req.params;
-    const session = await prisma.session.findUnique({
-      where: { id: parseInt(sessionId) },
-      include: { group: true },
-    });
-
-    if (!session) return res.status(404).json({ success: false, message: 'Session not found' });
-
-    // Get all attendances recorded so far
-    const attendances = await prisma.attendance.findMany({
-      where: { session_id: session.id },
-      include: {
-        student: {
-          select: { id: true, full_name: true, academic_number: true, phone: true, group: true, avatar: true },
-        },
-      },
-    });
-
-    // If session has a group, get all group members to find who is absent
-    let result = attendances;
-    if (session.group_id) {
-      const allStudents = await prisma.user.findMany({
-        where: { group_id: session.group_id, role: { role_name: 'student' } },
-        select: { id: true, full_name: true, academic_number: true, phone: true, avatar: true },
-      });
-
-      const attendedIds = new Set(attendances.map(a => a.student_id));
-      const absentStudents = allStudents
-        .filter(s => !attendedIds.has(s.id))
-        .map(s => ({
-          id: `absent-${s.id}`,
-          session_id: session.id,
-          student_id: s.id,
-          student: s,
-          is_present: false,
-          scanned_at: null,
-          attendance_type: 'none',
-        }));
-
-      result = [...attendances, ...absentStudents];
-    }
-
-    res.json({ success: true, data: result });
-  } catch (error) {
-    console.error('getSessionAttendance error:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
-  }
-};
-
-// ─── GET STUDENT ATTENDANCE HISTORY ──────────────────────
-const getStudentHistory = async (req, res) => {
-  try {
-    const studentId = req.user.role.role_name === 'student' ? req.user.id : parseInt(req.params.studentId);
-
-    const attendances = await prisma.attendance.findMany({
-      where: { student_id: studentId },
-      include: {
-        session: { include: { instructors: { select: { full_name: true } }, group: true } },
-      },
-      orderBy: { session: { start_time: 'desc' } },
-    });
-
-    res.json({ success: true, data: attendances });
-  } catch (error) {
-    res.status(500).json({ success: false, message: 'Server error' });
-  }
-};
-
-// ─── MANUAL MARK ATTENDANCE ───────────────────────────────
-const markAttendanceManual = async (req, res) => {
-  try {
-    const { sessionId, studentId, attendanceType, isPresent } = req.body;
-
-    const attendance = await prisma.attendance.upsert({
-      where: {
-        session_id_student_id_attendance_type: {
-          session_id: parseInt(sessionId),
-          student_id: parseInt(studentId),
-          attendance_type: attendanceType,
-        },
-      },
-      update: { is_present: isPresent, scanner_role: req.user.role.role_name },
-      create: {
-        session_id: parseInt(sessionId),
-        student_id: parseInt(studentId),
-        attendance_type: attendanceType,
-        is_present: isPresent,
-        scanner_role: req.user.role.role_name,
-      },
-    });
-
-    res.json({ success: true, data: attendance });
-  } catch (error) {
-    res.status(500).json({ success: false, message: 'Server error' });
-  }
-};
-
-// ─── GET WORKSHOP SHARED QR ───────────────────────────────
-const getWorkshopQR = async (req, res) => {
-  try {
-    const { sessionId } = req.params;
-    const session_id = parseInt(sessionId);
-    if (isNaN(session_id)) return res.status(400).json({ success: false, message: 'Invalid session ID' });
-
-    const duration = parseInt(req.query.duration) || 60; // default 60 mins
-    const session = await prisma.session.findUnique({ where: { id: session_id } });
-
-    if (!session) return res.status(404).json({ success: false, message: 'Session not found' });
-    if (!session.is_active) return res.status(400).json({ success: false, message: 'Session is not active' });
-
-    // Generate or get existing workshop QR (null user_id)
-    const expiresAt = new Date(Date.now() + duration * 60 * 1000); 
-    
-    // Deactivate any existing active workshop QR for this session to respect the new duration
-    await prisma.qrToken.updateMany({
-        where: { session_id: session_id, user_id: null, is_active: true },
-        data: { is_active: false }
-    });
-
-    const qrCode = `WORKSHOP-${session.id}-${crypto.randomBytes(16).toString('hex')}`;
-    const qrToken = await prisma.qrToken.create({
-        data: {
-            session_id: session_id,
-            user_id: null,
-            qr_code: qrCode,
-            expires_at: expiresAt,
-            is_active: true,
-        }
-    });
-
-    res.json({ 
-        success: true, 
-        data: {
-            ...qrToken,
-            timeLeftSeconds: Math.floor((qrToken.expires_at.getTime() - Date.now()) / 1000)
-        } 
-    });
-  } catch (error) {
-    console.error('Error in getWorkshopQR:', error);
-    res.status(500).json({ success: false, message: 'Server error: ' + error.message });
-  }
-};
-
-module.exports = { scanQR, getMyQR, getWorkshopQR, getSessionAttendance, getStudentHistory, markAttendanceManual };
+            <h1 style={{ fontSize: 16, fontWeight: 700, margin: 0 }} className="mobile-title">Student Portal</h1>
+          </div>
+          <button onClick={() => setScannerOpen(true)} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', borderRadius: 10, background: 'rgba(0,212,255,0.1)', border: '1px solid rgba(0,212,255,0.2)', color: 'var(--color-cyan)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}><Camera size={16} /><span className="hide-mobile">Scan QR</span></button>
+        </header>
+        <main style={{ flex: 1, overflow: 'auto', padding: 24, background: 'var(--color-bg-primary)' }} className="bg-dots main-content"><motion.div key={window.location.pathname} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}><Outlet /></motion.div></main>
+      </div>
+      <AnimatePresence>{scannerOpen && <QRScanner onClose={() => setScannerOpen(false)} />}</AnimatePresence>
+    </div>
+  );
+}
