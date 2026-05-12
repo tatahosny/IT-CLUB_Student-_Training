@@ -64,34 +64,51 @@ const scanQR = async (req, res) => {
     // 4. Check fraud detection flag from deviceGuard middleware
     if (req.fraudDetected && scannerRole === 'student') {
       const blockUntil = new Date(Date.now() + 24 * 60 * 60 * 1000);
-
-      // Remove attendance from both accounts
-      await prisma.attendance.deleteMany({
-        where: {
-          session_id: session.id,
-          student_id: { in: [req.fraudDetected.currentUserId, req.fraudDetected.suspectUserId] },
-        },
-      });
+      const currentUserId = req.fraudDetected.currentUserId;
+      const suspectUserId = req.fraudDetected.suspectUserId;
 
       // Block both accounts
       await prisma.user.updateMany({
-        where: { id: { in: [req.fraudDetected.currentUserId, req.fraudDetected.suspectUserId] } },
+        where: { id: { in: [currentUserId, suspectUserId] } },
         data: { is_blocked: true, blocked_until: blockUntil },
       });
 
-      // Notify admins via socket
+      // Record Fraud in Security Logs for Super Admin
+      await prisma.securityLog.createMany({
+        data: [
+          {
+            user_id: currentUserId,
+            device_id: fingerprint,
+            ip_address: ipAddress,
+            action_type: 'fraud',
+            description: `FRAUD ATTEMPT: Student ${currentUserId} tried to use device already registered to student ${suspectUserId}. BOTH BLOCKED.`,
+          },
+          {
+            user_id: suspectUserId,
+            device_id: fingerprint,
+            ip_address: ipAddress,
+            action_type: 'fraud',
+            description: `FRAUD ATTEMPT: Account used on device by student ${currentUserId}. BOTH BLOCKED.`,
+          }
+        ]
+      });
+
+      // Notify via socket
       const io = req.app.get('io');
       if (io) {
         io.to('admin_room').emit('fraud_detected', {
-          users: [req.fraudDetected.currentUserId, req.fraudDetected.suspectUserId],
-          fingerprint: req.fraudDetected.fingerprint,
+          users: [currentUserId, suspectUserId],
+          fingerprint: fingerprint,
           sessionId: session.id,
+          message: `Fraud attempt detected! Users ${currentUserId} and ${suspectUserId} have been blocked for 24h.`
         });
       }
 
       return res.status(403).json({
         success: false,
-        message: 'You are blocked for 24 hours due to attendance fraud attempt.',
+        fraud: true,
+        blockedUntil: blockUntil,
+        message: `You are blocked until ${blockUntil.toLocaleString()}. Reason: attendance fraud (Multiple accounts on same device). Both involved accounts have been suspended for 24h.`,
       });
     }
 
