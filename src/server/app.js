@@ -59,7 +59,7 @@ app.use('/uploads', express.static(path.join(__dirname, '../../uploads')));
 if (process.env.NODE_ENV === 'production') {
   app.use(express.static(path.join(__dirname, '../../dist')));
   
-  app.get('*', (req, res, next) => {
+  app.get('(.*)', (req, res, next) => {
     // If request is for /api, let it fall through to the API routes
     if (req.path.startsWith('/api')) return next();
     res.sendFile(path.join(__dirname, '../../dist/index.html'));
