@@ -12,11 +12,11 @@ import {
   XCircle, ChevronUp, ChevronDown, Wifi, Check, Activity, Edit
 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, PieChart, Pie, Cell } from "recharts";
-import { useAuthStore } from "../../store/authStore";
-import { authApi, adminApi, attendanceApi, sessionApi, taskApi, gradingApi } from "../../api/adminApi";
-import Logo from "../../components/common/Logo";
-import { ROLE_COLORS, ACTION_COLORS } from "../../utils/constants";
-import QRScanner from "../../components/qr/QRScanner";
+import { useAuthStore } from "@/store/authStore";
+import { authApi, adminApi, attendanceApi, sessionApi, taskApi, gradingApi } from "@/api/adminApi";
+import Logo from "@/components/common/Logo";
+import { ROLE_COLORS, ACTION_COLORS } from "@/utils/constants";
+import QRScanner from "@/components/qr/QRScanner";
 
 export default function StudentLayout() {
   const { user, logout } = useAuthStore(); const navigate = useNavigate(); const [scannerOpen, setScannerOpen] = useState(false); const [mobileOpen, setMobileOpen] = useState(false); const [collapsed, setCollapsed] = useState(false)
