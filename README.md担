@@ -1,0 +1,129 @@
+# IT Training & Management System (IT-Club)
+
+A professional, full-stack enterprise training management platform designed for academic and technical clubs. This system streamlines session attendance, task submissions, grading, and security monitoring using a modern, responsive interface.
+
+---
+
+## 🚀 Key Features
+
+### 🔐 Advanced Role-Based Access Control (RBAC)
+The system supports multiple levels of administrative and educational roles:
+- **Super Admin**: Full control over the entire platform and system settings.
+- **Admin**: Manage users, sessions, and overall club operations.
+- **Instructor**: Create and manage workshops/lectures and assign tasks.
+- **Mentor**: Grade student submissions based on specific criteria and monitor attendance.
+- **Student**: View upcoming sessions, submit tasks, track grades, and generate attendance QR codes.
+
+### 🛡️ Strict Anti-Fraud Attendance System
+Designed to prevent attendance cheating with multi-layered security:
+- **Dynamic Personal QR**: Students generate a one-time use QR code linked to their identity.
+- **Device Fingerprinting**: The system captures a unique hardware/software fingerprint of every device.
+- **Fraud Detection**: If multiple student accounts attempt to log in or generate attendance from the same device/fingerprint, the system automatically:
+  - Revokes both attendance records.
+  - Blocks both user accounts for 24 hours.
+  - Sends a real-time alert to administrators.
+
+### 📝 Task & Grading Management
+- **Criteria-Based Grading**: Tasks can have multiple grading criteria (e.g., Clean Code, Logic, UI/UX).
+- **Mentor Workflow**: Mentors can view a grading queue and provide detailed feedback.
+- **Real-time Stats**: Track average grades and submission rates per session.
+
+### 📱 Progressive Web App (PWA)
+- **Mobile Optimized**: Fully responsive UI designed to feel like a native application on phones.
+- **Installable**: Students and staff can install the system as a standalone app directly from the browser sidebar.
+- **Offline Support**: Basic caching for critical pages and assets.
+
+---
+
+## 🛠️ Technology Stack
+
+### Frontend
+- **Framework**: [React](https://reactjs.org/) + [Vite](https://vitejs.dev/)
+- **State Management**: [Zustand](https://github.com/pmndrs/zustand)
+- **Data Fetching**: [React Query (TanStack)](https://tanstack.com/query/latest)
+- **Animations**: [Framer Motion](https://www.framer.com/motion/)
+- **UI Icons**: [Lucide React](https://lucide.dev/)
+- **QR Engine**: `html5-qrcode` & `qrcode`
+
+### Backend
+- **Runtime**: [Node.js](https://nodejs.org/) & [Express](https://expressjs.com/)
+- **ORM**: [Prisma](https://www.prisma.io/)
+- **Database**: PostgreSQL / MySQL (as configured in `.env`)
+- **Real-time**: [Socket.io](https://socket.io/)
+- **Security**: JWT Authentication, Device Fingerprinting logic.
+
+---
+
+## 📂 Project Structure
+
+```bash
+it-club-system/
+├── client/           # React Frontend (Vite)
+│   ├── src/          # Source code
+│   └── public/       # Static assets (Manifest, Service Worker)
+├── server/           # Express Backend
+│   ├── src/          # API Controllers, Routes, Middlewares
+│   └── prisma/       # Database Schema & Migrations
+├── public/           # Root static assets
+└── index.html        # Entry point for the frontend
+```
+
+---
+
+## ⚙️ Installation & Setup
+
+### 1. Clone the repository
+```bash
+git clone https://github.com/yourusername/it-club-system.git
+cd it-club-system
+```
+
+### 2. Frontend Setup (Root Directory)
+```bash
+npm install
+```
+
+### 3. Backend Setup
+```bash
+cd server
+npm install
+```
+
+### 4. Database Setup
+- Create a `.env` file in the `server` directory.
+- Add your database connection string and JWT secrets (refer to `.env.example`).
+- Run Prisma migrations:
+```bash
+npx prisma migrate dev
+```
+
+---
+
+## 🚦 Getting Started
+
+### Development Mode
+**Root Directory (Frontend):**
+```bash
+npm run dev
+```
+
+**Server Directory (Backend):**
+```bash
+cd server
+npm run dev
+```
+
+### Production Build
+```bash
+npm run build
+```
+
+---
+
+## 🔒 Security Policy
+This system implements strict device guard policies. Any attempt to bypass attendance via account sharing or device spoofing results in an automatic 24-hour ban and administrative notification.
+
+---
+
+## 📄 License
+This project is licensed under the MIT License - see the LICENSE file for details.
