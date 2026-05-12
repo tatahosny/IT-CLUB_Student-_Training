@@ -57,12 +57,16 @@ app.use('/uploads', express.static(path.join(__dirname, '../../uploads')));
 
 // Serve React static files in production
 if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(path.join(__dirname, '../../dist')));
+  const distPath = path.resolve(__dirname, '../../dist');
+  app.use(express.static(distPath));
   
   app.get('*splat', (req, res, next) => {
-    // If request is for /api, let it fall through to the API routes
     if (req.path.startsWith('/api')) return next();
-    res.sendFile(path.join(__dirname, '../../dist/index.html'));
+    res.sendFile(path.join(distPath, 'index.html'));
+  });
+} else {
+  app.get('/', (req, res) => {
+    res.send('IT Training System API is running. Visit /api/health for status.');
   });
 }
 
