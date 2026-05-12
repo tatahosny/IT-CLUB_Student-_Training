@@ -7,7 +7,7 @@ const app = require('./app');
 const prisma = require('./config/db');
 
 const PORT = process.env.PORT || 5000;
-const CLIENT_URL = process.env.CLIENT_URL || 'https://it-club-student-training.vercel.app/';
+const CLIENT_URL = process.env.CLIENT_URL || 'https://it-clubstudent-training-production.up.railway.app';
 
 // ─── HTTP + SOCKET.IO ─────────────────────────────────────
 const server = http.createServer(app);
