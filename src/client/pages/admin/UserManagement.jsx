@@ -350,14 +350,33 @@ export default function UserManagement() {
     if (!importFile) return toast.error('Select a file first')
     const formData = new FormData()
     formData.append('file', importFile)
+    const toastId = toast.loading('Importing students...')
     try {
       const res = await adminApi.importStudents(formData)
       const { created, skipped, errors } = res.data.data
-      toast.success(`Imported ${created} students, skipped ${skipped}`)
-      if (errors.length > 0) console.warn('Import errors:', errors)
+      
+      toast.dismiss(toastId)
+      
+      if (created > 0) {
+        toast.success(`Successfully imported ${created} students`)
+      }
+      
+      if (skipped > 0) {
+        toast.error(`${skipped} rows were skipped. Check console for details.`, { duration: 5000 })
+      }
+
+      if (errors.length > 0) {
+        console.group('Import Errors Summary')
+        errors.forEach(err => console.error(err))
+        console.groupEnd()
+      }
+
       queryClient.invalidateQueries(['users'])
       setImportFile(null)
-    } catch { toast.error('Import failed') }
+    } catch (e) {
+      toast.dismiss(toastId)
+      toast.error(e.response?.data?.message || 'Import failed. Check file format.')
+    }
   }
 
   const users = data?.data || []
