@@ -176,17 +176,22 @@ export default function App() {
           path="/"
           element={
             user ? (
-              <Navigate
-                to={
-                  user.role?.role_name === 'super_admin' ? '/admin' :
-                  user.role?.role_name === 'instructor' ? '/instructor' :
-                  user.role?.role_name === 'mentor' || user.role?.role_name === 'mentor_manager' ? '/mentor' :
-                  user.role?.role_name === 'oc' ? '/oc' :
-                  '/student'
-                }
-              />
+              user.first_login ? (
+                <Navigate to="/first-login" replace />
+              ) : (
+                <Navigate
+                  to={
+                    user.role?.role_name === 'super_admin' ? '/admin' :
+                    user.role?.role_name === 'instructor' ? '/instructor' :
+                    user.role?.role_name === 'mentor' || user.role?.role_name === 'mentor_manager' ? '/mentor' :
+                    user.role?.role_name === 'oc' ? '/oc' :
+                    '/student'
+                  }
+                  replace
+                />
+              )
             ) : (
-              <Navigate to="/login" />
+              <Navigate to="/login" replace />
             )
           }
         />
