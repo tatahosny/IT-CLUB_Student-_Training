@@ -138,32 +138,45 @@ const importStudents = async (adminId, fileBuffer) => {
 
   const results = { created: 0, skipped: 0, errors: [] };
 
-  for (const row of rows) {
+  // Helper to get value from row with multiple possible header names
+  const getValue = (row, possibilities) => {
+    const key = Object.keys(row).find(k => 
+      possibilities.some(p => k.toLowerCase().trim() === p.toLowerCase().trim())
+    );
+    return key ? row[key] : null;
+  };
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
     try {
-      const fullName = row['Student Name'] || row['full_name'] || row['name'];
-      const academicNumber = String(row['Academic Number'] || row['academic_number'] || '');
-      const phone = String(row['Phone'] || row['phone'] || '');
-      const nationalId = String(row['National ID'] || row['national_id'] || '');
-      const groupName = row['Group'] || row['group'];
-      const levelName = row['Level'] || row['level'];
+      const fullName = getValue(row, ['Student Name', 'full_name', 'name', 'Student']);
+      let academicNumber = getValue(row, ['Academic Number', 'academic_number', 'id', 'academic_id']);
+      let phone = getValue(row, ['Phone', 'phone_number', 'mobile']);
+      const nationalId = getValue(row, ['National ID', 'national_id', 'id_number']);
+      const groupName = getValue(row, ['Group', 'group_name', 'class']);
+      const levelName = getValue(row, ['Level', 'level_name', 'grade']);
+
+      // Convert numbers to strings and trim
+      academicNumber = academicNumber ? String(academicNumber).trim() : '';
+      phone = phone ? String(phone).trim() : '';
 
       if (!fullName || !academicNumber || !phone) {
-        results.errors.push(`Row skipped: missing required fields`);
+        results.errors.push(`Row ${i + 2}: Missing required fields (Name: ${fullName||'N/A'}, Academic #: ${academicNumber||'N/A'}, Phone: ${phone||'N/A'})`);
         results.skipped++;
         continue;
       }
 
       const email = `${academicNumber}@it.training.system`;
-      const password = phone;
+      const password = phone; 
       const hashedPassword = await bcrypt.hash(password, 10);
       const registrationNumber = `IT-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
 
       let groupId = null;
       if (groupName) {
         const group = await prisma.group.upsert({
-          where: { group_name: groupName },
+          where: { group_name: String(groupName).trim() },
           update: {},
-          create: { group_name: groupName },
+          create: { group_name: String(groupName).trim() },
         });
         groupId = group.id;
       }
@@ -171,23 +184,29 @@ const importStudents = async (adminId, fileBuffer) => {
       let levelId = null;
       if (levelName) {
         const level = await prisma.level.upsert({
-          where: { level_name: levelName },
+          where: { level_name: String(levelName).trim() },
           update: {},
-          create: { level_name: levelName },
+          create: { level_name: String(levelName).trim() },
         });
         levelId = level.id;
       }
 
       await prisma.user.upsert({
         where: { academic_number: academicNumber },
-        update: { group_id: groupId, level_id: levelId },
+        update: { 
+          group_id: groupId || undefined, 
+          level_id: levelId || undefined,
+          phone: phone, 
+          full_name: fullName,
+          role_id: studentRole.id // Ensure they are always student role
+        },
         create: {
           full_name: fullName,
           email,
           phone,
           password: hashedPassword,
           academic_number: academicNumber,
-          national_id: nationalId || null,
+          national_id: nationalId ? String(nationalId).trim() : null,
           registration_number: registrationNumber,
           role_id: studentRole.id,
           group_id: groupId,
@@ -197,7 +216,7 @@ const importStudents = async (adminId, fileBuffer) => {
       });
       results.created++;
     } catch (err) {
-      results.errors.push(`Error: ${err.message}`);
+      results.errors.push(`Row ${i + 2} (${getValue(row, ['Student Name', 'name']) || 'Unknown'}): ${err.message}`);
       results.skipped++;
     }
   }
@@ -206,7 +225,7 @@ const importStudents = async (adminId, fileBuffer) => {
     data: {
       user_id: adminId,
       action: 'import_students',
-      description: `Imported ${results.created} students`,
+      description: `Imported ${results.created} students, skipped ${results.skipped}`,
     },
   });
 
