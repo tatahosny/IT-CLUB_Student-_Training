@@ -76,7 +76,7 @@ export default function LoginPage() {
               <label className="label">Email Address</label>
               <div style={{ position: 'relative' }}>
                 <input 
-                  {...register('email', { required: 'Email is required' })} 
+                  {...register('email', { required: 'Email address is required' })} 
                   type="email" 
                   className={`input ${errors.email ? 'input-error' : ''}`} 
                   placeholder="user@domain.com" 
@@ -84,6 +84,7 @@ export default function LoginPage() {
                 />
                 <LogIn size={18} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-cyan)', opacity: 0.7 }} />
               </div>
+              {errors.email && <span style={{ color: 'var(--color-red)', fontSize: 11, marginTop: 4, display: 'block' }}><AlertCircle size={10} style={{ display: 'inline', marginRight: 4 }} />{errors.email.message}</span>}
             </div>
 
             <div style={{ marginBottom: 32 }}>
@@ -105,9 +106,10 @@ export default function LoginPage() {
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
+              {errors.password && <span style={{ color: 'var(--color-red)', fontSize: 11, marginTop: 4, display: 'block' }}><AlertCircle size={10} style={{ display: 'inline', marginRight: 4 }} />{errors.password.message}</span>}
             </div>
 
-            <button disabled={loading} type="submit" className="btn btn-primary" style={{ width: '100%', height: 48, fontSize: 15 }}>
+            <button disabled={loading} type="submit" className="btn btn-primary" style={{ width: '100%', height: 52, fontSize: 16 }}>
               {loading ? <RefreshCw className="spin" size={20} /> : <><Zap size={20} /> Authenticate Session</>}
             </button>
           </form>
