@@ -66,12 +66,38 @@ export default function SessionAttendanceDetail() {
   }, [showQR, qrToken])
   const { data: attendance, refetch } = useQuery({ queryKey: ['attendance', id], queryFn: () => attendanceApi.getSessionAttendance(id).then(r => r.data.data), refetchInterval: 10000 })
   const [attendanceFilter, setAttendanceFilter] = useState('all') // all | present | absent
+  const [searchTerm, setSearchTerm] = useState('')
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 15
 
-  const filteredAttendance = attendance?.filter(record => {
-    if (attendanceFilter === 'present') return record.is_present;
-    if (attendanceFilter === 'absent') return !record.is_present;
-    return true;
-  }) || [];
+  const filteredAttendance = useMemo(() => {
+    let result = attendance || [];
+    
+    // Filter by status
+    if (attendanceFilter === 'present') result = result.filter(record => record.is_present);
+    if (attendanceFilter === 'absent') result = result.filter(record => !record.is_present);
+    
+    // Search
+    if (searchTerm) {
+      const lowSearch = searchTerm.toLowerCase();
+      result = result.filter(record => 
+        record.student?.full_name?.toLowerCase().includes(lowSearch) || 
+        record.student?.academic_number?.toLowerCase().includes(lowSearch)
+      );
+    }
+    
+    return result;
+  }, [attendance, attendanceFilter, searchTerm]);
+
+  const totalPages = Math.ceil(filteredAttendance.length / itemsPerPage);
+  const paginatedAttendance = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredAttendance.slice(start, start + itemsPerPage);
+  }, [filteredAttendance, currentPage]);
+
+  useEffect(() => {
+    setCurrentPage(1); // Reset to page 1 on filter/search change
+  }, [attendanceFilter, searchTerm]);
 
   useEffect(() => {
     if (searchParams.get('edit') === 'true' && session) {
@@ -500,26 +526,40 @@ export default function SessionAttendanceDetail() {
       </div>
 
       <div className="glass-card">
-        <div style={{ padding: '20px 24px', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h3 style={{ fontSize: 16, fontWeight: 700 }}>Attendance Overview</h3>
+        <div style={{ padding: '20px 24px', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, flex: 1, minWidth: 300 }}>
+            <h3 style={{ fontSize: 16, fontWeight: 700, whiteSpace: 'nowrap' }}>كشف الحضور</h3>
+            <div style={{ position: 'relative', flex: 1, maxWidth: 400 }}>
+              <input 
+                type="text" 
+                placeholder="بحث بالاسم أو الرقم الأكاديمي..." 
+                className="input" 
+                style={{ height: 38, paddingLeft: 36, fontSize: 13, direction: 'rtl' }}
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+              />
+              <Search size={16} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)' }} />
+            </div>
+          </div>
           <div style={{ display: 'flex', gap: 4, background: 'rgba(255,255,255,0.05)', padding: 4, borderRadius: 8 }}>
             {[
-              { id: 'all', label: 'ALL' },
-              { id: 'present', label: 'PRESENT' },
-              { id: 'absent', label: 'ABSENT' }
+              { id: 'all', label: 'الكل' },
+              { id: 'present', label: 'حاضر' },
+              { id: 'absent', label: 'غائب' }
             ].map(f => (
               <button 
                 key={f.id} 
                 onClick={() => setAttendanceFilter(f.id)}
                 style={{ 
-                  padding: '4px 12px', 
-                  fontSize: 11, 
+                  padding: '6px 16px', 
+                  fontSize: 12, 
                   fontWeight: 700, 
                   borderRadius: 6, 
                   border: 'none', 
                   cursor: 'pointer',
                   background: attendanceFilter === f.id ? 'var(--color-cyan)' : 'transparent',
                   color: attendanceFilter === f.id ? '#000' : 'var(--color-text-muted)',
+                  transition: 'all 0.2s'
                 }}
               >
                 {f.label}
@@ -528,54 +568,108 @@ export default function SessionAttendanceDetail() {
           </div>
         </div>
         <div className="table-wrapper">
-          <table>
+          <table style={{ direction: 'rtl', textAlign: 'right' }}>
             <thead>
               <tr>
-                <th>Student</th>
-                <th>Academic #</th>
-                <th>Status</th>
-                <th>Time Scanned</th>
-                <th>Method</th>
-                <th>Action</th>
+                <th style={{ textAlign: 'right' }}>الطالب</th>
+                <th style={{ textAlign: 'right' }}>الرقم الأكاديمي</th>
+                <th style={{ textAlign: 'right' }}>الحالة</th>
+                <th style={{ textAlign: 'right' }}>الوقت</th>
+                <th style={{ textAlign: 'right' }}>الطريقة</th>
+                <th style={{ textAlign: 'right' }}>الإجراء</th>
               </tr>
             </thead>
             <tbody>
-              {filteredAttendance?.map((record) => (
+              {paginatedAttendance?.map((record) => (
                 <tr key={record.id}>
-                  <td style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 600 }}>
-                      {record.student?.avatar ? <img src={record.student.avatar} style={{ width: '100%', height: '100%', borderRadius: 8 }} /> : record.student?.full_name?.[0]}
+                  <td style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 800, border: '1px solid var(--glass-border)' }}>
+                      {record.student?.avatar ? <img src={record.student.avatar} style={{ width: '100%', height: '100%', borderRadius: 10, objectFit: 'cover' }} /> : record.student?.full_name?.[0]}
                     </div>
-                    <span>{record.student?.full_name}</span>
+                    <span style={{ fontWeight: 600 }}>{record.student?.full_name}</span>
                   </td>
-                  <td style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>{record.student?.academic_number}</td>
+                  <td style={{ fontSize: 13, color: 'var(--color-text-secondary)', fontFamily: 'monospace' }}>{record.student?.academic_number}</td>
                   <td>
-                    <span className={`badge ${record.is_present ? 'badge-green' : 'badge-red'}`}>
-                      {record.is_present ? 'PRESENT' : 'ABSENT'}
+                    <span className={`badge ${record.is_present ? 'badge-green' : 'badge-red'}`} style={{ minWidth: 70, justifyContent: 'center' }}>
+                      {record.is_present ? 'حاضر' : 'غائب'}
                     </span>
                   </td>
                   <td style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>
-                    {record.scanned_at ? new Date(record.scanned_at).toLocaleTimeString() : '—'}
+                    {record.scanned_at ? new Date(record.scanned_at).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }) : '—'}
                   </td>
                   <td style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>
-                    {record.scanner_role || (record.is_present ? 'QR Code' : '—')}
+                    {record.scanner_role === 'student' ? 'المسح الشخصي' : record.scanner_role === 'FRAUD_ATTEMPT' ? 'محاولة غش' : record.scanner_role || (record.is_present ? 'رمز QR' : '—')}
                   </td>
                   <td>
                     {!isMentor && isSuperAdmin && (
                       <button 
-                        onClick={() => markMutation.mutate({ sessionId: id, studentId: record.student_id, attendanceType: 'first', isPresent: !record.is_present })}
+                        onClick={() => markMutation.mutate({ sessionId: id, studentId: record.student_id, attendanceType: record.attendance_type || 'first', isPresent: !record.is_present })}
                         className={`btn btn-sm ${record.is_present ? 'btn-danger' : 'btn-primary'}`}
-                        style={{ padding: '4px 10px', fontSize: 11 }}
+                        style={{ padding: '6px 12px', fontSize: 11, minWidth: 100 }}
                       >
-                        {record.is_present ? 'Mark Absent' : 'Mark Present'}
+                        {record.is_present ? 'تسجيل غياب' : 'تسجيل حضور'}
                       </button>
                     )}
                   </td>
                 </tr>
               ))}
+              {paginatedAttendance.length === 0 && (
+                <tr>
+                  <td colSpan="6" style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-muted)' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+                      <Search size={32} opacity={0.2} />
+                      <span>لا يوجد طلاب يطابقون البحث</span>
+                    </div>
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
+        
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div style={{ padding: '16px 24px', borderTop: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 12 }}>
+            <button 
+              disabled={currentPage === 1} 
+              onClick={() => setCurrentPage(prev => prev - 1)}
+              className="btn btn-sm btn-ghost"
+              style={{ width: 32, height: 32, padding: 0 }}
+            >
+              <ChevronRight size={18} />
+            </button>
+            <div style={{ display: 'flex', gap: 6 }}>
+              {[...Array(totalPages)].map((_, i) => (
+                <button 
+                  key={i} 
+                  onClick={() => setCurrentPage(i + 1)}
+                  style={{ 
+                    width: 32, 
+                    height: 32, 
+                    borderRadius: 8, 
+                    border: 'none', 
+                    cursor: 'pointer',
+                    background: currentPage === i + 1 ? 'var(--color-cyan)' : 'rgba(255,255,255,0.05)',
+                    color: currentPage === i + 1 ? '#000' : 'var(--color-text-primary)',
+                    fontSize: 12,
+                    fontWeight: 700,
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  {i + 1}
+                </button>
+              ))}
+            </div>
+            <button 
+              disabled={currentPage === totalPages} 
+              onClick={() => setCurrentPage(prev => prev + 1)}
+              className="btn btn-sm btn-ghost"
+              style={{ width: 32, height: 32, padding: 0 }}
+            >
+              <ChevronLeft size={18} />
+            </button>
+          </div>
+        )}
       </div>
       <AnimatePresence>
         {showQR && (
