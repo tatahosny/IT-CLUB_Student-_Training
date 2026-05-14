@@ -4,7 +4,7 @@ import { motion } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import {
   Users, Monitor, ClipboardList, Shield, 
-  CheckSquare, Activity, Cpu, FileText, BarChart3, Settings, Zap
+  CheckSquare, Activity, Cpu, FileText, BarChart3, Settings, Zap, Eye
 } from 'lucide-react'
 import { adminApi } from '../../api/adminApi'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
@@ -57,7 +57,7 @@ export default function AdminDashboard() {
       {/* Quick Links Section */}
       <div style={{ marginBottom: 32 }}>
         <h2 style={{ fontSize: 18, fontWeight: 800, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10 }}>
-          <Zap size={20} className="color-cyan" />
+          <Zap size={20} className="text-cyan" />
           Quick Management
         </h2>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 12 }}>
@@ -135,9 +135,9 @@ export default function AdminDashboard() {
         </motion.div>
       </div>
 
-      <div className="grid-2">
+      <div className="grid-2" style={{ marginBottom: 28 }}>
         <div className="glass-card" style={{ padding: 24 }}>
-          <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 20 }}><Activity size={18} style={{ display: 'inline', marginRight: 8, color: 'var(--color-cyan)' }} />System Activity</h3>
+          <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 20 }}><Activity size={18} style={{ display: 'inline', marginRight: 8, color: 'var(--color-cyan)' }} />System Activity Trend</h3>
           <ResponsiveContainer width="100%" height={240}>
             <AreaChart data={analytics?.activityData || []}>
               <defs>
@@ -157,21 +157,48 @@ export default function AdminDashboard() {
             </AreaChart>
           </ResponsiveContainer>
         </div>
+
         <div className="glass-card" style={{ padding: 24 }}>
-          <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 20 }}><Users size={18} style={{ display: 'inline', marginRight: 8, color: 'var(--color-lime)' }} />User Distribution</h3>
-          <ResponsiveContainer width="100%" height={240}>
-            <PieChart>
-              <Pie data={analytics?.roleData || []} innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
-                {(analytics?.roleData || []).map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={[ '#12D6FF', '#9BEA27', '#5BE7FF', '#B7FF4A' ][index % 4]} />
-                ))}
-              </Pie>
-              <Tooltip 
-                contentStyle={{ background: 'rgba(11, 22, 34, 0.9)', border: '1px solid var(--glass-border)', borderRadius: 12 }}
-              />
-            </PieChart>
-          </ResponsiveContainer>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+            <h3 style={{ fontSize: 16, fontWeight: 700 }}><FileText size={18} style={{ display: 'inline', marginRight: 8, color: 'var(--color-lime)' }} />Recent Activity</h3>
+            <button onClick={() => navigate('/admin/security?tab=activity')} className="btn btn-ghost" style={{ fontSize: 12, height: 32 }}>History</button>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {analytics?.recentLogs?.map((log, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '10px', borderRadius: 12, background: 'rgba(255,255,255,0.02)', borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
+                <div style={{ width: 32, height: 32, borderRadius: 10, background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  {log.action.includes('view') ? <Eye size={16} className="text-cyan" /> : <Activity size={16} style={{ color: 'var(--color-purple)' }} />}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600 }}>{log.user?.full_name}</div>
+                  <div style={{ fontSize: 11, color: 'var(--color-text-muted)', lineHeight: 1.4 }}>{log.description}</div>
+                </div>
+                <div style={{ fontSize: 10, color: 'var(--color-text-muted)', textAlign: 'right' }}>
+                  {new Date(log.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </div>
+              </div>
+            ))}
+            {(!analytics?.recentLogs || analytics.recentLogs.length === 0) && (
+              <div style={{ textAlign: 'center', padding: 20, color: 'var(--color-text-muted)', fontSize: 12 }}>No recent activity</div>
+            )}
+          </div>
         </div>
+      </div>
+
+      <div className="glass-card" style={{ padding: 24, marginBottom: 28 }}>
+        <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 20 }}><Users size={18} style={{ display: 'inline', marginRight: 8, color: 'var(--color-lime)' }} />User Distribution</h3>
+        <ResponsiveContainer width="100%" height={240}>
+          <PieChart>
+            <Pie data={analytics?.roleData || []} innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
+              {(analytics?.roleData || []).map((entry, index) => (
+                <Cell key={`cell-${index}`} fill={[ '#12D6FF', '#9BEA27', '#5BE7FF', '#B7FF4A' ][index % 4]} />
+              ))}
+            </Pie>
+            <Tooltip 
+              contentStyle={{ background: 'rgba(11, 22, 34, 0.9)', border: '1px solid var(--glass-border)', borderRadius: 12 }}
+            />
+          </PieChart>
+        </ResponsiveContainer>
       </div>
     </div>
   )
