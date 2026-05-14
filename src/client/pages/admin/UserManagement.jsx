@@ -301,6 +301,18 @@ export default function UserManagement() {
     keepPreviousData: true,
   })
 
+  useEffect(() => {
+    if (search && search.length > 2) {
+      const timer = setTimeout(() => {
+        adminApi.logActivity({
+          action: 'action_search',
+          description: `Searched for: "${search}" in User Management`
+        }).catch(() => {});
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [search]);
+
   const hasManagePerm = isMasterAdmin || currentUser?.custom_permissions?.includes('can_manage_users')
   const hasCreatePerm = isMasterAdmin || currentUser?.custom_permissions?.includes('can_create_sessions')
   const hasEditPerm = isMasterAdmin || currentUser?.custom_permissions?.includes('can_edit_sessions')
@@ -536,6 +548,67 @@ export default function UserManagement() {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination Controls */}
+        {(meta.last_page > 1 || meta.totalPages > 1 || (meta.total > 20)) && (
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center', 
+            padding: '20px 24px', 
+            borderTop: '1px solid var(--glass-border)',
+            flexWrap: 'wrap',
+            gap: 16
+          }}>
+            <div style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>
+              Showing <span style={{ color: 'var(--color-text-primary)', fontWeight: 600 }}>{(page - 1) * 20 + 1}</span> to <span style={{ color: 'var(--color-text-primary)', fontWeight: 600 }}>{Math.min(page * 20, meta.total || 0)}</span> of <span style={{ color: 'var(--color-text-primary)', fontWeight: 600 }}>{meta.total || 0}</span> users
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <button 
+                className="btn btn-ghost btn-sm" 
+                disabled={page === 1}
+                onClick={() => { setPage(p => Math.max(1, p - 1)); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                style={{ width: 32, height: 32, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              >
+                <ChevronLeft size={16} />
+              </button>
+              
+              <div style={{ display: 'flex', gap: 4 }}>
+                {(() => {
+                  const lastPage = meta.last_page || meta.totalPages || Math.ceil((meta.total || 0) / 20);
+                  const pages = [];
+                  for (let i = 1; i <= lastPage; i++) {
+                    if (i === 1 || i === lastPage || (i >= page - 2 && i <= page + 2)) {
+                      pages.push(
+                        <button
+                          key={i}
+                          onClick={() => { setPage(i); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                          className={`btn btn-sm ${page === i ? 'btn-primary' : 'btn-ghost'}`}
+                          style={{ minWidth: 32, height: 32, padding: 0 }}
+                        >
+                          {i}
+                        </button>
+                      );
+                    } else if (i === page - 3 || i === page + 3) {
+                      pages.push(<span key={i} style={{ color: 'var(--color-text-muted)', padding: '0 4px' }}>...</span>);
+                    }
+                  }
+                  return pages;
+                })()}
+              </div>
+
+              <button 
+                className="btn btn-ghost btn-sm" 
+                disabled={page >= (meta.last_page || meta.totalPages || Math.ceil((meta.total || 0) / 20))}
+                onClick={() => { setPage(p => p + 1); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                style={{ width: 32, height: 32, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          </div>
+        )}
 
         <ConfirmModal 
           isOpen={!!confirmDelete} 
