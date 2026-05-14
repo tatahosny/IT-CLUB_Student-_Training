@@ -1,0 +1,281 @@
+// This is your Prisma schema file
+// IT Training System - IT-Club
+// Database: Neon PostgreSQL
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── ROLES ───────────────────────────────────────────────
+model Role {
+  id        Int    @id @default(autoincrement())
+  role_name String @unique // super_admin | instructor | mentor_manager | mentor | student | oc
+
+  users User[]
+
+  @@map("roles")
+}
+
+// ─── GROUPS ──────────────────────────────────────────────
+model Group {
+  id          Int    @id @default(autoincrement())
+  group_name  String @unique
+  description String?
+
+  users    User[]
+  sessions Session[]
+
+  @@map("groups")
+}
+
+// ─── LEVELS ──────────────────────────────────────────────
+model Level {
+  id         Int    @id @default(autoincrement())
+  level_name String @unique // e.g. Level 1, Level 2
+
+  users User[]
+
+  @@map("levels")
+}
+
+// ─── USERS ───────────────────────────────────────────────
+model User {
+  id                  Int       @id @default(autoincrement())
+  full_name           String
+  email               String    @unique
+  phone               String?
+  password            String
+  academic_number     String?   @unique
+  national_id         String?   @unique
+  registration_number String?   @unique
+  role_id             Int
+  group_id            Int?
+  level_id            Int?
+  avatar              String?
+  is_blocked          Boolean   @default(false)
+  blocked_until       DateTime?
+  first_login         Boolean   @default(true)
+  custom_permissions  String[]  @default([])
+  created_at          DateTime  @default(now())
+  updated_at          DateTime  @updatedAt
+
+  role  Role   @relation(fields: [role_id], references: [id])
+  group Group? @relation(fields: [group_id], references: [id])
+  level Level? @relation(fields: [level_id], references: [id])
+
+  sessions_taught  Session[]        @relation("SessionInstructors")
+  attendances      Attendance[]
+  tasks_created    Task[]           @relation("InstructorTasks")
+  submissions      TaskSubmission[]
+  grades_given     TaskGrade[]      @relation("MentorGrades")
+  security_logs    SecurityLog[]
+  device_tracking  DeviceTracking[]
+  notifications    Notification[]
+  activity_logs    ActivityLog[]
+
+  @@map("users")
+}
+
+model Session {
+  id                    Int       @id @default(autoincrement())
+  title                 String
+  room_number           String?
+  group_id              Int?
+  start_time            DateTime
+  end_time              DateTime
+  attendance_one_open   DateTime?
+  attendance_one_close  DateTime?
+  attendance_two_open   DateTime?
+  attendance_two_close  DateTime?
+  session_type          String    @default("lecture") // lecture | workshop
+  qr_token              String?   @unique
+  is_active             Boolean   @default(false)
+  staff_labels          Json?     @default("{}")
+  created_at            DateTime  @default(now())
+
+  instructors User[]  @relation("SessionInstructors")
+  group       Group?  @relation(fields: [group_id], references: [id])
+
+  attendances Attendance[]
+  qr_tokens   QrToken[]
+
+  @@map("sessions")
+}
+
+// ─── ATTENDANCE ───────────────────────────────────────────
+model Attendance {
+  id              Int       @id @default(autoincrement())
+  session_id      Int
+  student_id      Int
+  attendance_type String    // first | second | workshop
+  is_present      Boolean   @default(false)
+  scanned_at      DateTime?
+  scanner_role    String?
+  device_id       String?
+  ip_address      String?
+
+  session Session @relation(fields: [session_id], references: [id], onDelete: Cascade)
+  student User    @relation(fields: [student_id], references: [id], onDelete: Cascade)
+
+  @@unique([session_id, student_id, attendance_type])
+  @@map("attendance")
+}
+
+// ─── TASKS ───────────────────────────────────────────────
+model Task {
+  id            Int      @id @default(autoincrement())
+  instructor_id Int
+  title         String
+  description   String?
+  deadline      DateTime
+  max_files     Int      @default(3)
+  allowed_types String[] @default(["pdf", "zip", "jpg", "png"])
+  total_marks   Int      @default(100)
+  is_active     Boolean  @default(true)
+  created_at    DateTime @default(now())
+
+  instructor  User             @relation("InstructorTasks", fields: [instructor_id], references: [id])
+  submissions TaskSubmission[]
+  criteria    GradingCriteria[]
+
+  @@map("tasks")
+}
+
+// ─── TASK SUBMISSIONS ────────────────────────────────────
+model TaskSubmission {
+  id             Int      @id @default(autoincrement())
+  task_id        Int
+  student_id     Int
+  uploaded_files String[] // array of file paths
+  submitted_at   DateTime @default(now())
+  status         String   @default("pending") // pending | reviewed | rejected
+
+  task    Task  @relation(fields: [task_id], references: [id], onDelete: Cascade)
+  student User  @relation(fields: [student_id], references: [id], onDelete: Cascade)
+  grade   TaskGrade?
+
+  @@unique([task_id, student_id])
+  @@map("task_submissions")
+}
+
+// ─── TASK GRADES ─────────────────────────────────────────
+model TaskGrade {
+  id             Int      @id @default(autoincrement())
+  submission_id  Int      @unique
+  mentor_id      Int
+  reviewer_name  String?
+  total_grade    Float    @default(0)
+  feedback       String?
+  graded_at      DateTime @default(now())
+
+  submission TaskSubmission  @relation(fields: [submission_id], references: [id], onDelete: Cascade)
+  mentor     User            @relation("MentorGrades", fields: [mentor_id], references: [id])
+  details    GradingDetail[]
+
+  @@map("task_grades")
+}
+
+// ─── GRADING CRITERIA ────────────────────────────────────
+model GradingCriteria {
+  id        Int    @id @default(autoincrement())
+  task_id   Int
+  title     String // e.g. DIV Structure, Navbar, Responsive Design
+  max_grade Float
+
+  task    Task            @relation(fields: [task_id], references: [id], onDelete: Cascade)
+  details GradingDetail[]
+
+  @@map("grading_criteria")
+}
+
+// ─── GRADING DETAILS ─────────────────────────────────────
+model GradingDetail {
+  id            Int    @id @default(autoincrement())
+  grade_id      Int
+  criteria_id   Int
+  student_grade Float  @default(0)
+  notes         String?
+
+  grade    TaskGrade       @relation(fields: [grade_id], references: [id], onDelete: Cascade)
+  criteria GradingCriteria @relation(fields: [criteria_id], references: [id], onDelete: Cascade)
+
+  @@map("grading_details")
+}
+
+// ─── SECURITY LOGS ───────────────────────────────────────
+model SecurityLog {
+  id          Int      @id @default(autoincrement())
+  user_id     Int?
+  device_id   String?
+  ip_address  String?
+  action_type String   // login | logout | fraud | block | scan
+  description String?
+  created_at  DateTime @default(now())
+
+  user User? @relation(fields: [user_id], references: [id], onDelete: SetNull)
+
+  @@map("security_logs")
+}
+
+// ─── DEVICE TRACKING ─────────────────────────────────────
+model DeviceTracking {
+  id           Int      @id @default(autoincrement())
+  user_id      Int
+  fingerprint  String
+  device_name  String?
+  browser      String?
+  ip_address   String?
+  last_login   DateTime @default(now())
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, fingerprint])
+  @@map("device_tracking")
+}
+
+// ─── QR TOKENS ───────────────────────────────────────────
+model QrToken {
+  id         Int      @id @default(autoincrement())
+  session_id Int
+  user_id    Int?     // null = shared workshop QR
+  qr_code    String   @unique
+  expires_at DateTime
+  is_active  Boolean  @default(true)
+  created_at DateTime @default(now())
+
+  session Session @relation(fields: [session_id], references: [id], onDelete: Cascade)
+
+  @@map("qr_tokens")
+}
+
+// ─── NOTIFICATIONS ───────────────────────────────────────
+model Notification {
+  id         Int      @id @default(autoincrement())
+  user_id    Int
+  title      String
+  message    String
+  is_read    Boolean  @default(false)
+  created_at DateTime @default(now())
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+// ─── ACTIVITY LOGS ───────────────────────────────────────
+model ActivityLog {
+  id          Int      @id @default(autoincrement())
+  user_id     Int?
+  action      String
+  description String?
+  created_at  DateTime @default(now())
+
+  user User? @relation(fields: [user_id], references: [id], onDelete: SetNull)
+
+  @@map("activity_logs")
+}
