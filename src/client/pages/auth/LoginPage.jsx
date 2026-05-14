@@ -20,7 +20,8 @@ export default function LoginPage() {
   const navigate = useNavigate(); const { setAuth, isAuthenticated, user } = useAuthStore()
   const [showPassword, setShowPassword] = useState(false); const [loading, setLoading] = useState(false)
   const [blockedInfo, setBlockedInfo] = useState(null);
-  const { register, handleSubmit, formState: { errors } } = useForm()
+  const [loginError, setLoginError] = useState(null);
+  const { register, handleSubmit, formState: { errors }, resetField } = useForm()
 
   useEffect(() => {
     if (!localStorage.getItem('device_fingerprint')) localStorage.setItem('device_fingerprint', generateFingerprint())
@@ -29,24 +30,36 @@ export default function LoginPage() {
         navigate('/first-login')
       } else {
         const role = user.role?.role_name
-        navigate(role === 'super_admin' ? '/admin' : role === 'instructor' ? '/instructor' : role === 'mentor' || role === 'mentor_manager' ? '/mentor' : role === 'oc' ? '/oc' : '/student')
+        navigate(role === 'hr' ? '/hr' : role === 'super_admin' ? '/admin' : role === 'instructor' ? '/instructor' : role === 'mentor' || role === 'mentor_manager' ? '/mentor' : '/student')
       }
     }
   }, [isAuthenticated])
 
   const onSubmit = async (data) => {
-    setLoading(true); try {
+    setLoading(true); setLoginError(null);
+    try {
       const res = await authApi.login(data); const { user, accessToken, refreshToken } = res.data.data
       setAuth(user, accessToken, refreshToken); toast.success(`Welcome back, ${user.full_name.split(' ')[0]}! 👋`)
     } catch (e) { 
-      if (e.response?.status === 403) {
+      const status = e.response?.status;
+      const msg = e.response?.data?.message || 'Login failed';
+      
+      if (status === 403) {
         setBlockedInfo({
-          message: e.response.data.message,
+          message: msg,
           blockedUntil: e.response.data.blockedUntil
         });
+      } else if (status === 401) {
+        setLoginError('Invalid Credentials: The password you entered is incorrect. Please double-check and try again.');
+        resetField('password');
+      } else if (status === 404) {
+        setLoginError('Account Not Found: We couldn\'t find an account associated with this email address.');
+      } else if (status === 429) {
+        setLoginError('Too Many Attempts: Your access has been temporarily restricted due to multiple failed login attempts. Please try again later.');
       } else {
-        toast.error(e.response?.data?.message || 'Login failed');
+        setLoginError(`Authentication Error: ${msg}`);
       }
+      // No toast here to keep it clean and persistent in the UI as requested
     } finally { setLoading(false) }
   }
 
@@ -64,12 +77,32 @@ export default function LoginPage() {
           <Logo size={90} style={{ margin: '0 auto 24px', justifyContent: 'center' }} />
         </div>
         <motion.div 
-          initial={{ scale: 0.95 }} animate={{ scale: 1 }}
+          initial={{ scale: 0.95 }} 
+          animate={{ 
+            scale: 1,
+            x: loginError ? [0, -10, 10, -10, 10, 0] : 0
+          }}
+          transition={{ 
+            x: { duration: 0.4, ease: "easeInOut" }
+          }}
           className="glass-card" 
           style={{ padding: 40, position: 'relative', border: '1px solid rgba(18, 214, 255, 0.15)' }}
         >
           <h2 style={{ fontSize: 24, fontWeight: 800, marginBottom: 8 }}>Sign In</h2>
           <p style={{ fontSize: 13, color: 'var(--color-text-muted)', marginBottom: 32 }}>Enter your credentials to access the system</p>
+          
+          <AnimatePresence>
+            {loginError && (
+              <motion.div 
+                initial={{ opacity: 0, height: 0 }} 
+                animate={{ opacity: 1, height: 'auto' }} 
+                exit={{ opacity: 0, height: 0 }}
+                style={{ marginBottom: 20, padding: '10px 14px', borderRadius: 10, background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', display: 'flex', alignItems: 'center', gap: 10, color: '#EF4444', fontSize: 12 }}
+              >
+                <AlertCircle size={14} /> {loginError}
+              </motion.div>
+            )}
+          </AnimatePresence>
           
           <form onSubmit={handleSubmit(onSubmit)} autoComplete="off">
             <div style={{ marginBottom: 24 }}>
