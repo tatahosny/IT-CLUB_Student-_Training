@@ -97,9 +97,10 @@ export default function StudentLayout() {
 
   const navItems = [
     { path: '/student', label: 'Dashboard', icon: LayoutDashboard, exact: true },
+    { path: '/student/record-attendance', label: 'Record Attendance', icon: QrCode },
     { path: '/student/tasks', label: 'Tasks', icon: ClipboardList },
     { path: '/student/grades', label: 'My Grades', icon: Star },
-    { path: '/student/attendance', label: 'Attendance', icon: Clock },
+    { path: '/student/attendance', label: 'Attendance History', icon: Clock },
     { path: '/student/notifications', label: 'Notifications', icon: Bell },
     { path: '/student/settings', label: 'Settings', icon: Settings },
   ]
