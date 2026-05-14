@@ -21,10 +21,6 @@ import { ROLE_COLORS, ACTION_COLORS } from "@/utils/constants";
 
 export default function StudentDashboard() {
   const { user } = useAuthStore()
-  const [selectedSession, setSelectedSession] = useState(null)
-  const [qrImage, setQrImage] = useState('')
-  const [qrData, setQrData] = useState(null)
-  const [loading, setLoading] = useState(false)
   const [taskFiles, setTaskFiles] = useState({})
   const [submittingTask, setSubmittingTask] = useState(null)
 
@@ -54,34 +50,6 @@ export default function StudentDashboard() {
     try { await taskApi.deleteFile(taskId, fileName); toast.success('File removed'); refetchSubs(); } catch (e) { toast.error('Failed to remove file') }
   }
 
-  // Auto-select session if only one is active
-  useEffect(() => {
-    if (sessions?.length === 1 && !selectedSession && !qrImage && !loading) {
-      generateMyQR(sessions[0].id)
-    }
-  }, [sessions, selectedSession, qrImage, loading])
-
-  const generateMyQR = async (sessionId) => {
-    setLoading(true); try {
-      const res = await attendanceApi.getMyQR(sessionId); const token = res.data.data; setQrData(token)
-      const dataUrl = await QRCode.toDataURL(`IT-QR:${token.qr_code}`, { 
-        width: 300, 
-        margin: 2,
-        color: {
-          dark: '#00d4ff',
-          light: '#060b18'
-        }
-      });
-      setQrImage(dataUrl); setSelectedSession(sessionId);
-    } catch (e) { 
-      const errorMsg = e.response?.data?.message || e.message || 'Failed to generate QR';
-      console.error('QR Generation Error:', e);
-      toast.error(errorMsg);
-    } finally { setLoading(false) }
-  }
-
-  const isExpired = qrData && new Date() > new Date(qrData.expires_at)
-  const minutesLeft = qrData ? Math.max(0, Math.round((new Date(qrData.expires_at) - new Date()) / 60000)) : 0
 
   return (
     <div style={{ paddingBottom: 60 }}>
@@ -96,60 +64,21 @@ export default function StudentDashboard() {
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 48 }}>
         {/* Attendance Section - Full Width or Centered Card */}
+        {/* Record Attendance CTA */}
         <section>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
-            <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(0,212,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <QrCode size={18} className="color-cyan" />
-            </div>
-            <h2 style={{ fontSize: 20, fontWeight: 800 }}>Attendance QR</h2>
-          </div>
-          
-          <div className="glass-card" style={{ padding: 40, display: 'flex', flexWrap: 'wrap', gap: 40, alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(0,212,255,0.15)', background: 'linear-gradient(135deg, rgba(6,11,24,0.8), rgba(12,20,40,0.8))', position: 'relative', overflow: 'hidden' }}>
-            {/* Background Glow */}
-            <div style={{ position: 'absolute', top: '-20%', right: '-10%', width: 300, height: 300, background: 'rgba(0,212,255,0.05)', filter: 'blur(100px)', borderRadius: '50%', pointerEvents: 'none' }} />
-            
-            <div style={{ flex: '1 1 300px', textAlign: 'center' }}>
-              <div style={{ marginBottom: 32, padding: 24, borderRadius: 20, background: 'rgba(255,255,255,0.03)', border: '1px solid var(--glass-border)', boxShadow: '0 8px 32px rgba(0,0,0,0.2)' }}>
-                <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 8, letterSpacing: '2px', fontWeight: 700 }}>ACADEMIC ID</div>
-                <div style={{ fontSize: 32, fontWeight: 900, letterSpacing: '4px', color: 'var(--color-cyan)', textShadow: '0 0 20px rgba(0,212,255,0.3)' }}>{user?.academic_number}</div>
+          <div className="glass-card" style={{ padding: 32, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 24, background: 'linear-gradient(135deg, rgba(18,214,255,0.1), rgba(0,0,0,0.2))', border: '1px solid rgba(18,214,255,0.2)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+              <div style={{ width: 64, height: 64, borderRadius: 16, background: 'rgba(18,214,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-cyan)', boxShadow: '0 0 20px rgba(18,214,255,0.1)' }}>
+                <QrCode size={32} />
               </div>
-              
-              {sessions?.length > 0 && !qrImage && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                   <p style={{ fontSize: 14, color: 'var(--color-text-muted)' }}>Select active session to generate QR:</p>
-                   {sessions.map(s => (
-                     <button key={s.id} onClick={() => generateMyQR(s.id)} className="btn btn-primary" style={{ width: '100%', height: 48 }}>{s.title} <span className="badge badge-green" style={{ marginLeft: 8 }}>LIVE</span></button>
-                   ))}
-                </div>
-              )}
-              
-              {sessions?.length === 0 && (
-                <div style={{ opacity: 0.6 }}>
-                  <Clock size={40} style={{ color: 'var(--color-text-muted)', marginBottom: 16 }} />
-                  <p>No sessions currently active</p>
-                </div>
-              )}
+              <div style={{ flex: 1 }}>
+                <h2 style={{ fontSize: 22, fontWeight: 900, marginBottom: 4 }}>Session Attendance</h2>
+                <p style={{ color: 'var(--color-text-secondary)', fontSize: 14 }}>Ready for your session? Generate your attendance QR code now.</p>
+              </div>
             </div>
-
-            <AnimatePresence>
-              {qrImage && (
-                <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} style={{ flex: '0 0 auto' }}>
-                  <div style={{ padding: 20, borderRadius: 24, background: '#fff', border: isExpired ? '4px solid var(--color-red)' : '4px solid var(--color-cyan)', boxShadow: '0 0 40px rgba(0,212,255,0.2)' }}>
-                    <img src={qrImage} alt="QR" style={{ width: 240, height: 240, display: 'block', opacity: isExpired ? 0.2 : 1 }} />
-                    {isExpired && <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-red)', fontWeight: 900, fontSize: 24 }}>EXPIRED</div>}
-                  </div>
-                  <div style={{ marginTop: 24, textAlign: 'center' }}>
-                    <div style={{ fontSize: 15, fontWeight: 700, color: isExpired ? 'var(--color-red)' : 'var(--color-green)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                      {isExpired ? <AlertTriangle size={18} /> : <CheckCircle size={18} />}
-                      {isExpired ? 'QR Expired' : `Valid for ${minutesLeft} mins`}
-                    </div>
-                    <button className="btn btn-ghost" style={{ marginTop: 12, fontSize: 12 }} onClick={() => generateMyQR(selectedSession)} disabled={loading}>
-                      <RefreshCw size={14} style={{ marginRight: 6 }} /> {loading ? 'Wait...' : 'Refresh Token'}
-                    </button>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+            <Link to="/student/record-attendance" className="btn btn-primary" style={{ height: 48, padding: '0 32px', fontSize: 16 }}>
+              <Zap size={18} /> Record Attendance
+            </Link>
           </div>
         </section>
 
