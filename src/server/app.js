@@ -35,8 +35,12 @@ app.use(helmet({
 }));
 
 // ─── CORS ─────────────────────────────────────────────────
+const allowedOrigins = process.env.CLIENT_URL 
+  ? [process.env.CLIENT_URL, /\.vercel\.app$/] 
+  : true;
+
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'https://it-clubstudent-training-production.up.railway.app',
+  origin: allowedOrigins,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
 }));
